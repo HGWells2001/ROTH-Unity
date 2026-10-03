@@ -1,0 +1,35 @@
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+
+# IDE
+.vscode/
+.idea/
+.vs/
+*.csproj
+*.sln
+*.user
+*.suo
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Original Realms of the Haunting data
+OriginalGame/
+GameData/
+ROTH/
+DATA/
+*.GDV
+*.DAS
+*.RAW
+DBASE*.DAT
+ROTH.EXE
+ROTH.RES

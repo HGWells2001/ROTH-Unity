@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-04",
+  "prefixes": {
+    "04036034": {
+      "name": "Carrefour",
+      "category": "Supermercato",
+      "barcodeFormat": "EAN_13",
+      "imageUrl": "",
+      "country": "IT",
+      "source": "manuale verificato"
+    }
+  }
+}

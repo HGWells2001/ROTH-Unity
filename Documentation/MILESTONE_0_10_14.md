@@ -1,3 +1,5 @@
+> **CORRECTION (0.10.15):** The 0x22D51 callback at table index 74 belongs to RAW opcode **7**, not opcode 9. The real opcode-9 animation callback is **0x22BD9** (table index 76), verified through the second relocated indirect animation dispatcher at 0x247CC. The 6-bit fraction path belongs to opcode 7. See [MILESTONE_0_10_15.md](MILESTONE_0_10_15.md). The remainder below is retained as the historical investigation record.
+
 # ROTH Unity 0.10.14 | Original DOS RAW opcode 9 identified
 
 **Milestone type: evidence and instrumentation.** No Unity physics or geometry semantics were silently changed. This is a significant reverse-engineering milestone but not yet runtime parity.

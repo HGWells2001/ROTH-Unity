@@ -91,3 +91,7 @@ Fixes small-step rider obstruction detection and deterministic position rollback
 
 ## 0.10.11 — RAW9 trace audit
 Read-only Unity log parser with per-sector JSON summaries, anomaly diagnostics, and eight synthetic Python tests. Does not establish DOS fidelity. See `Documentation/MILESTONE_0_10_11.md`.
+
+
+## 0.10.13 — Verified GOG executable LE layout
+Analyzed an original user-owned ROTH.EXE (SHA-256 `e2d54427cd0692798e2df457b1ea8d3bca8cf1383ec2d4ea782165fe0ba56a05`): confirmed 80386 MZ+LE image, 81 page mappings, three objects and Watcom startup entry. Added `Tools/inspect_roth_le.py` and 10 synthetic tests. See `Documentation/MILESTONE_0_10_13.md`. **The command-9 DOS handler is not yet located; no retail binary is committed.**

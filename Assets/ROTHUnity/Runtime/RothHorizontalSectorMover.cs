@@ -81,13 +81,25 @@ namespace ROTHUnity.Runtime
                 Vector2Int delta = after - before;
                 if (delta != Vector2Int.zero)
                 {
-                    bool onSector = Player != null &&
-                        Builder.RuntimePlayerOccupiesSector(m.SectorId, Player);
+                    short sectorFloor;
+                    bool hasFloor = Builder.RuntimeGetSectorHeight(m.SectorId, false, out sectorFloor);
+                    bool onPlatform = CarryPlayer && Player != null && hasFloor &&
+                        Builder.RuntimePlayerStandsOnFloor(m.SectorId, Player, sectorFloor);
                     Vector3 localDelta = new Vector3(
                         (Builder.MirrorWorldX ? -delta.x : delta.x) * Builder.CoordinateScale,
                         0f, delta.y * Builder.CoordinateScale);
                     Vector3 worldDelta = Builder.transform.TransformVector(localDelta);
-                    if (onSector && CarryPlayer) Player.Move(worldDelta);
+                    if (onPlatform)
+                    {
+                        Vector3 oldPosition = Player.transform.position;
+                        Player.Move(worldDelta);
+                        Vector3 achieved = Player.transform.position - oldPosition;
+                        if (Vector3.Dot(achieved, worldDelta) + 0.001f < worldDelta.sqrMagnitude)
+                        {
+                            Player.Move(-achieved);
+                            continue;
+                        }
+                    }
                     if (!Builder.RuntimeSetSectorTranslation(m.SectorId, after))
                     {
                         _motions.RemoveAt(i);
@@ -104,7 +116,12 @@ namespace ROTHUnity.Runtime
                     m.ReturnAt = -1f;
                     continue;
                 }
-                if (m.ReturnDelay <= 0f) { _motions.RemoveAt(i); continue; }
+                if (m.ReturnDelay <= 0f)
+                {
+                    if (!m.Repeat) _motions.RemoveAt(i);
+                    else { m.Returning = true; m.Destination = m.ReturnPosition; }
+                    continue;
+                }
                 if (m.ReturnAt < 0f) m.ReturnAt = Time.time + m.ReturnDelay;
                 if (Time.time < m.ReturnAt) continue;
                 if (AvoidPlayerObstruction && Player != null &&

@@ -75,3 +75,7 @@ Sector-mover countdown begins after reaching the open position; re-triggers pres
 
 ## 0.10.7
 Experimental CharacterController transport on moving floors and capsule clearance guard for floor/ceiling motion. See Documentation/MILESTONE_0_10_7.md.
+
+
+## 0.10.8 — RAW moving sectors
+Experimental RAW opcode 9 horizontal movement (X/Z), isolated vertices, sector objects and grounded rider carry, separate floor/ceiling/platform texture-follow flags, auto-return and auto-repeat. Retail audit of 32 unique opcode 9 commands included as `Tools/validate_raw9.py`. See Documentation/MILESTONE_0_10_8.md for limitations. Unity build not verified.

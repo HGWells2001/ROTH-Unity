@@ -12,6 +12,8 @@ namespace ROTHUnity.Runtime
         public RothMapMeshBuilder Builder;
         public CharacterController Player;
         public float RawUnitsPerSecond = 128f;
+        [Tooltip("Speed per high-byte flag unit; provisional, compare against retail gameplay")]
+        public float RawSpeedPerFlagUnit = 32f;
         public float AutoRevertTickSeconds = 0.1f;
         public bool CarryPlayer = true;
         public bool AvoidPlayerObstruction = true;
@@ -47,10 +49,12 @@ namespace ROTHUnity.Runtime
             _motions.Add(new Motion {
                 SectorId = sectorId, AlongX = alongX,
                 Position = alongX ? existing.x : existing.y,
-                Destination = end,
-                OutwardDestination = end,
-                ReturnPosition = start,
-                Speed = Mathf.Max(1f, RawUnitsPerSecond),
+                // Treat signed end minus start as travel distance, not mesh-origin offset.
+                Destination = (float)end - start,
+                OutwardDestination = (float)end - start,
+                ReturnPosition = 0f,
+                Speed = Mathf.Max(1f, ((flags >> 8) & 255) == 0 ? RawUnitsPerSecond :
+                    ((flags >> 8) & 255) * Mathf.Max(1f, RawSpeedPerFlagUnit)),
                 ReturnDelay = revertTicks * Mathf.Max(0f, AutoRevertTickSeconds),
                 Repeat = repeat
             });

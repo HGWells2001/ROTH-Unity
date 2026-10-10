@@ -245,6 +245,14 @@ namespace ROTHUnity.Runtime
                         unchecked((short)c.Arguments[2]),unchecked((short)c.Arguments[3]),
                         (c.Arguments[0]&(1<<2))!=0,
                         c.Arguments.Length > 4 ? c.Arguments[4] : (ushort)0);
+                case 9: // RAW horizontal sector translation (prototype)
+                    if (c.Arguments.Length < 6 || MapBuilder == null) return false;
+                    RothHorizontalSectorMover horizontal = MapBuilder.GetComponent<RothHorizontalSectorMover>();
+                    if (horizontal == null) horizontal = MapBuilder.gameObject.AddComponent<RothHorizontalSectorMover>();
+                    horizontal.Builder = MapBuilder;
+                    return horizontal.Move(c.Arguments[1], (c.Arguments[0] & (1 << 6)) != 0,
+                        unchecked((short)c.Arguments[2]), unchecked((short)c.Arguments[3]),
+                        c.Arguments[4], (c.Arguments[0] & (1 << 5)) != 0);
                 case 10: // Change Floor Texture
                     if(c.Arguments.Length<4 || MapBuilder==null) return false;
                     return MapBuilder.RuntimeChangeFloorTexture(c.Arguments[1],c.Arguments[2],c.Arguments[3],c.Arguments[0]);

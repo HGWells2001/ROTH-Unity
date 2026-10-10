@@ -83,3 +83,7 @@ Experimental RAW opcode 9 horizontal movement (X/Z), isolated vertices, sector o
 
 ## 0.10.9 — RAW9 safety
 Added overflow-atomic sector translations, position-preserving motion retriggers, rider rollback and regression tests. This is **not** a proven retail-faithful implementation. See `Documentation/MILESTONE_0_10_9.md`.
+
+
+## 0.10.10 — RAW9 carry and trace
+Fixes small-step rider obstruction detection and deterministic position rollback. Adds opt-in structured RAW9 trace logs for later DOS comparisons. Experimental and not yet Unity-playtested. See `Documentation/MILESTONE_0_10_10.md`.

@@ -103,3 +103,7 @@ Validated 14,968 LE fixup records from the user's own GOG executable and traced 
 
 ## 0.10.15 — Verified horizontal movement callback, correcting 0.10.14
 Original LE animation runner at object1+0x247CC uses the same relocated function table with index offset +67. This proves **opcode 9 update = 0x22BD9**, **opcode 7 update = 0x22D51** and assigns the 6-bit fractional path to opcode 7, correcting earlier claims. The frame delta derives from a 16-bit counter, but real-time tick frequency is not established. Audit and 12 tests updated; Unity movement remains experimental and unchanged. See `Documentation/MILESTONE_0_10_15.md`.
+
+
+## 0.10.16 — Evidence-backed RAW9 completion state machine
+Examined the original GOG opcode-9 update and shared animation epilogue, verifying **30 exact x86 sites** plus the LE relocation to the global frame delta. Reconstructed the signed 16-bit countdown and a branch-accurate completion truth table for timeout, repeat-bit and phase flag. The new `Tools/audit_roth_opcode9_states.py` checks the user's local ROTH.EXE; `Tools/test_roth_opcode9_states.py` contributes **18 synthetic tests**. See [Documentation/MILESTONE_0_10_16.md](Documentation/MILESTONE_0_10_16.md) and [state reference JSON](Documentation/ROTH_OPCODE9_STATES_REFERENCE.json). **The Unity mover remains experimental and unchanged**, because real DOS tick frequency and full scheduler behavior are not yet verified. No commercial game bytes are in the repository.

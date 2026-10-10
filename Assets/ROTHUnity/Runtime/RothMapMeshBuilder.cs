@@ -183,6 +183,37 @@ namespace ROTHUnity.Runtime
             return inside;
         }
 
+        /// <summary>
+        /// Checks the proposed sector clearance against the player's vertical capsule.
+        /// Conservatively refuses any floor/ceiling motion that would overlap the capsule.
+        /// </summary>
+        public bool RuntimeWouldCrushPlayer(ushort sectorId, CharacterController player,
+            short proposedFloor, short proposedCeiling, float safetyMargin = 0.04f)
+        {
+            if (player == null || !player.enabled || !RuntimePlayerOccupiesSector(sectorId, player))
+                return false;
+            Vector3 center = player.transform.TransformPoint(player.center);
+            Vector3 localCenter = transform.InverseTransformPoint(center);
+            float playerBottom = localCenter.y - player.height * 0.5f;
+            float playerTop = localCenter.y + player.height * 0.5f;
+            float floorY = proposedFloor * HeightScale;
+            float ceilingY = proposedCeiling * HeightScale;
+            if (floorY > ceilingY) return true;
+            return floorY > playerBottom + safetyMargin ||
+                   ceilingY < playerTop - safetyMargin;
+        }
+
+        /// <summary>True while a CharacterController stands on the specified floor.</summary>
+        public bool RuntimePlayerStandsOnFloor(ushort sectorId, CharacterController player,
+            short floorHeight, float tolerance = 0.16f)
+        {
+            if (player == null || !player.enabled || !RuntimePlayerOccupiesSector(sectorId, player))
+                return false;
+            Vector3 center = transform.InverseTransformPoint(player.transform.TransformPoint(player.center));
+            float bottom = center.y - player.height * 0.5f;
+            return Mathf.Abs(bottom - floorHeight * HeightScale) <= tolerance;
+        }
+
         public bool RuntimeChangeFloorTexture(ushort sectorId, ushort textureIndex, ushort packedShift, ushort flags)
         {
             if (_map == null) return false;

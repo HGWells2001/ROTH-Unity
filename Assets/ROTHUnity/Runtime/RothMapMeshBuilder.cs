@@ -260,9 +260,17 @@ namespace ROTHUnity.Runtime
             if (_movingSectorVertices.ContainsKey(id)) return true;
             RothSector sector = FindSectorById(id);
             if (sector == null || sector.FirstFaceIndex < 0) return false;
+            // Validate every vertex before detaching to avoid partial mutation.
+            int end = Math.Min(_map.Faces.Count, sector.FirstFaceIndex + sector.FacesCount);
+            for (int f = sector.FirstFaceIndex; f < end; f++)
+            {
+                RothFace candidate = _map.Faces[f];
+                if (candidate.VertexIndex01 < 0 || candidate.VertexIndex02 < 0 ||
+                    candidate.VertexIndex01 >= _map.Vertices.Count ||
+                    candidate.VertexIndex02 >= _map.Vertices.Count) return false;
+            }
             var originals = new Dictionary<int, RothVertex>();
             var remapped = new Dictionary<int, int>();
-            int end = Math.Min(_map.Faces.Count, sector.FirstFaceIndex + sector.FacesCount);
             for (int f = sector.FirstFaceIndex; f < end; f++)
             {
                 RothFace face = _map.Faces[f];
@@ -292,22 +300,36 @@ namespace ROTHUnity.Runtime
         {
             if (!PrepareSectorTranslation(sectorId)) return false;
             var original = _movingSectorVertices[sectorId];
+            // Validate all vertices and sector objects before mutating anything.
+            foreach (var entry in original)
+            {
+                RothVertex v = entry.Value;
+                long x = (long)v.X + rawOffset.x, y = (long)v.Y + rawOffset.y;
+                if (x < short.MinValue || x > short.MaxValue ||
+                    y < short.MinValue || y > short.MaxValue) return false;
+            }
+            Vector2Int previous = _movingSectorOffsets[sectorId];
+            Vector2Int delta = rawOffset - previous;
+            int sectorIndex = _map.Sectors.IndexOf(FindSectorById(sectorId));
+            foreach (RothObject obj in _map.Objects)
+            {
+                if (obj.SectorIndex != sectorIndex) continue;
+                long x = (long)obj.PosX + delta.x, y = (long)obj.PosY + delta.y;
+                if (x < short.MinValue || x > short.MaxValue ||
+                    y < short.MinValue || y > short.MaxValue) return false;
+            }
             foreach (var entry in original)
             {
                 RothVertex v = entry.Value;
                 _map.Vertices[entry.Key] = new RothVertex(
-                    (short)Mathf.Clamp(v.X + rawOffset.x, short.MinValue, short.MaxValue),
-                    (short)Mathf.Clamp(v.Y + rawOffset.y, short.MinValue, short.MaxValue));
+                    (short)(v.X + rawOffset.x), (short)(v.Y + rawOffset.y));
             }
-            Vector2Int previous = _movingSectorOffsets[sectorId];
-            Vector2Int delta = rawOffset - previous;
             _movingSectorOffsets[sectorId] = rawOffset;
-            int sectorIndex = _map.Sectors.IndexOf(FindSectorById(sectorId));
             foreach (RothObject obj in _map.Objects)
                 if (obj.SectorIndex == sectorIndex)
                 {
-                    obj.PosX = (short)Mathf.Clamp(obj.PosX + delta.x, short.MinValue, short.MaxValue);
-                    obj.PosY = (short)Mathf.Clamp(obj.PosY + delta.y, short.MinValue, short.MaxValue);
+                    obj.PosX = (short)(obj.PosX + delta.x);
+                    obj.PosY = (short)(obj.PosY + delta.y);
                 }
             RefreshRuntimeGeometry(rebuildObjects: delta != Vector2Int.zero);
             return true;

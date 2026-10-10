@@ -31,7 +31,9 @@ namespace ROTHUnity.Runtime
             public short ReturnHeight;
             public short TargetHeight;
             public float AutoCloseTime;
+            public float HoldDuration;
             public bool Returning;
+            public bool ReachedOpenPosition;
         }
 
         [Tooltip("CharacterController whose capsule must not be trapped by a closing sector.")]
@@ -50,12 +52,14 @@ namespace ROTHUnity.Runtime
             for (int i = _motions.Count - 1; i >= 0; --i)
                 if (_motions[i].Id == sectorId && _motions[i].Ceiling == ceiling)
                     _motions.RemoveAt(i);
-            if (!Builder.RuntimeSetSectorHeight(sectorId, ceiling, start)) return false;
+            // Preserve the actual position when a second trigger interrupts a moving sector.
+            // The original start/end pair still defines the open/return destinations.
             _motions.Add(new Motion {
-                Id = sectorId, Ceiling = ceiling, Current = start, End = end,
+                Id = sectorId, Ceiling = ceiling, Current = existing, End = end,
                 Speed = Mathf.Max(1f, RawUnitsPerSecond * (slow ? 0.5f : 1f)),
                 LastRefresh = Time.time, ReturnHeight = start, TargetHeight = end,
-                AutoCloseTime = autoCloseTicks == 0 ? -1f : Time.time + autoCloseTicks * AutoCloseTickSeconds
+                AutoCloseTime = -1f,
+                HoldDuration = autoCloseTicks == 0 ? 0f : autoCloseTicks * Mathf.Max(0f, AutoCloseTickSeconds)
             });
             return true;
         }
@@ -79,30 +83,39 @@ namespace ROTHUnity.Runtime
                 {
                     m.Returning = false;
                     m.End = m.TargetHeight;
-                    m.AutoCloseTime = Time.time + Mathf.Max(0.05f, ObstructionRetrySeconds);
+                    m.AutoCloseTime = -1f;
+                    m.ReachedOpenPosition = false;
                 }
                 m.Current = Mathf.MoveTowards(m.Current, m.End, m.Speed * Time.deltaTime);
-                bool done = Mathf.Approximately(m.Current, m.End);
-                if (done && !m.Returning && m.AutoCloseTime > 0f)
-                {
-                    if (Time.time < m.AutoCloseTime) continue;
-                    if (PreventClosingOnPlayer && Player != null &&
-                        Builder.RuntimePlayerOccupiesSector(m.Id, Player))
-                    {
-                        m.AutoCloseTime = Time.time + Mathf.Max(0.05f, ObstructionRetrySeconds);
-                        continue;
-                    }
-                    m.Returning = true;
-                    m.End = m.ReturnHeight;
-                    done = Mathf.Approximately(m.Current, m.End);
-                }
-                if (done || Time.time - m.LastRefresh >= MeshRefreshInterval)
+                bool reached = Mathf.Approximately(m.Current, m.End);
+                // Every reached position is committed once, regardless of refresh interval.
+                if (reached || Time.time - m.LastRefresh >= MeshRefreshInterval)
                 {
                     Builder.RuntimeSetSectorHeight(m.Id, m.Ceiling,
                         (short)Mathf.Clamp(Mathf.RoundToInt(m.Current), short.MinValue, short.MaxValue));
                     m.LastRefresh = Time.time;
                 }
-                if (done && (m.Returning || m.AutoCloseTime < 0f)) _motions.RemoveAt(i);
+                if (!reached) continue;
+                if (m.Returning || m.HoldDuration <= 0f)
+                {
+                    _motions.RemoveAt(i);
+                    continue;
+                }
+                // Start the delay ONLY when the open destination is reached.
+                if (!m.ReachedOpenPosition)
+                {
+                    m.ReachedOpenPosition = true;
+                    m.AutoCloseTime = Time.time + m.HoldDuration;
+                }
+                if (Time.time < m.AutoCloseTime) continue;
+                if (PreventClosingOnPlayer && Player != null &&
+                    Builder.RuntimePlayerOccupiesSector(m.Id, Player))
+                {
+                    m.AutoCloseTime = Time.time + Mathf.Max(0.05f, ObstructionRetrySeconds);
+                    continue;
+                }
+                m.Returning = true;
+                m.End = m.ReturnHeight;
             }
         }
     }

@@ -67,3 +67,7 @@ RAW sector movers now optionally return to their initial height after the config
 
 ## 0.10.5
 Prototype automatic door obstruction prevention using RAW sector polygon footprints. See Documentation/MILESTONE_0_10_5.md.
+
+
+## 0.10.6
+Sector-mover countdown begins after reaching the open position; re-triggers preserve current position. See Documentation/MILESTONE_0_10_6.md.

@@ -220,11 +220,30 @@ namespace ROTHUnity.Runtime
             new Dictionary<ushort, Dictionary<int, RothVertex>>();
         private readonly Dictionary<ushort, Vector2Int> _movingSectorOffsets =
             new Dictionary<ushort, Vector2Int>();
+        private readonly Dictionary<ushort, ushort> _movingSectorTextureFlags =
+            new Dictionary<ushort, ushort>();
+
+        /// <summary>RAW9 bits 0..3: floor, ceiling, platform floor and platform ceiling.</summary>
+        public void RuntimeSetSectorTextureFollowFlags(ushort id, ushort flags)
+        {
+            _movingSectorTextureFlags[id] = (ushort)(flags & 15);
+        }
+
+        private Vector2Int TextureMotionOffset(RothSector sector, int followBit)
+        {
+            ushort flags;
+            Vector2Int offset;
+            return _movingSectorTextureFlags.TryGetValue(sector.SectorId, out flags) &&
+                (flags & (1 << followBit)) != 0 &&
+                _movingSectorOffsets.TryGetValue(sector.SectorId, out offset)
+                    ? offset : Vector2Int.zero;
+        }
 
         public void RuntimeClearSectorTranslations()
         {
             _movingSectorVertices.Clear();
             _movingSectorOffsets.Clear();
+            _movingSectorTextureFlags.Clear();
         }
 
         public bool RuntimeGetSectorTranslation(ushort id, out Vector2Int offset)
@@ -487,7 +506,7 @@ namespace ROTHUnity.Runtime
                 {
                     Vector3 p = ConvertPoint(polygon[i], sector.FloorHeight);
                     vertices.Add(p);
-                    uvs.Add(SectorUv(polygon[i], polygon, sector.FloorTextureIndex, sector.FloorTextureShiftX, sector.FloorTextureShiftY, sector.SectorFlags, sector.AdditionalSectorFlags, false, textured));
+                    uvs.Add(SectorUv(polygon[i], polygon, sector.FloorTextureIndex, sector.FloorTextureShiftX, sector.FloorTextureShiftY, sector.SectorFlags, sector.AdditionalSectorFlags, false, textured, TextureMotionOffset(sector, 0)));
                 }
                 for (int i = 0; i < triangles.Count; i += 3)
                 {
@@ -505,7 +524,7 @@ namespace ROTHUnity.Runtime
                 {
                     Vector3 p = ConvertPoint(polygon[i], sector.CeilingHeight);
                     vertices.Add(p);
-                    uvs.Add(SectorUv(polygon[i], polygon, sector.CeilingTextureIndex, sector.CeilingTextureShiftX, sector.CeilingTextureShiftY, sector.SectorFlags, sector.AdditionalSectorFlags, true, textured));
+                    uvs.Add(SectorUv(polygon[i], polygon, sector.CeilingTextureIndex, sector.CeilingTextureShiftX, sector.CeilingTextureShiftY, sector.SectorFlags, sector.AdditionalSectorFlags, true, textured, TextureMotionOffset(sector, 1)));
                 }
                 for (int i = 0; i < triangles.Count; i += 3)
                 {
@@ -698,16 +717,16 @@ namespace ROTHUnity.Runtime
             return value;
         }
 
-        private Vector2 SectorUv(RothVertex point, List<RothVertex> polygon, ushort textureIndex, byte shiftX, byte shiftY, byte sectorFlags, ushort additionalFlags, bool ceiling, bool textured)
+        private Vector2 SectorUv(RothVertex point, List<RothVertex> polygon, ushort textureIndex, byte shiftX, byte shiftY, byte sectorFlags, ushort additionalFlags, bool ceiling, bool textured, Vector2Int moveTextureOffset = default(Vector2Int))
         {
             // Evaluate the texture grid in the same coordinate space used by geometry.
             // 0.4.1 always mirrored X; 0.4.2 defaults to the original ROTH orientation.
             int minX = int.MaxValue, minY = int.MaxValue;
             for (int i=0;i<polygon.Count;i++)
             {
-                int px = MirrorWorldX ? -polygon[i].X : polygon[i].X;
+                int px = MirrorWorldX ? -(polygon[i].X - moveTextureOffset.x) : polygon[i].X - moveTextureOffset.x;
                 minX=Math.Min(minX, px);
-                minY=Math.Min(minY, polygon[i].Y);
+                minY=Math.Min(minY, polygon[i].Y - moveTextureOffset.y);
             }
             float texW=128f, texH=128f;
             if (textured && _textureFactory != null) { int w,h; if (_textureFactory.TryGetTextureSize(textureIndex,out w,out h)) { texW=w; texH=h; } }
@@ -720,9 +739,9 @@ namespace ROTHUnity.Runtime
             else if (a==0 && b==1) { sizeFactor=4f; shiftFactor=2f; }
             else { sizeFactor=8f; shiftFactor=4f; }
             float gridX = Mod(minX,1024), gridY = Mod(minY,1024);
-            float mappedX = MirrorWorldX ? -point.X : point.X;
+            float mappedX = MirrorWorldX ? -(point.X - moveTextureOffset.x) : point.X - moveTextureOffset.x;
             float u = (mappedX-minX + gridX + shiftX*shiftFactor)/(texW*sizeFactor);
-            float v = (point.Y-minY + gridY - shiftY*shiftFactor)/(texH*sizeFactor);
+            float v = (point.Y-moveTextureOffset.y-minY + gridY - shiftY*shiftFactor)/(texH*sizeFactor);
             int flipX = ceiling ? 10 : 8, flipY = ceiling ? 11 : 9;
             if ((additionalFlags & (1<<flipX)) != 0) u=-u;
             if ((additionalFlags & (1<<flipY)) != 0) v=-v;
@@ -741,16 +760,16 @@ namespace ROTHUnity.Runtime
             List<int> triangles=TriangulatePolygon(polygon);
             if (triangles.Count<3) return;
             RothMidPlatform platform=map.MidPlatforms[sector.IntermediateFloorIndex];
-            AddPlatformSurface(polygon, triangles, platform.FloorHeight, platform.FloorTextureIndex, platform.FloorTextureShiftX, platform.FloorTextureShiftY, platform.FloorTextureScale, false, textured, vertices, uvs, groups);
-            AddPlatformSurface(polygon, triangles, platform.CeilingHeight, platform.CeilingTextureIndex, platform.CeilingTextureShiftX, platform.CeilingTextureShiftY, platform.FloorTextureScale, true, textured, vertices, uvs, groups);
+            AddPlatformSurface(polygon, triangles, platform.FloorHeight, platform.FloorTextureIndex, platform.FloorTextureShiftX, platform.FloorTextureShiftY, platform.FloorTextureScale, false, textured, vertices, uvs, groups, TextureMotionOffset(sector, 2));
+            AddPlatformSurface(polygon, triangles, platform.CeilingHeight, platform.CeilingTextureIndex, platform.CeilingTextureShiftX, platform.CeilingTextureShiftY, platform.FloorTextureScale, true, textured, vertices, uvs, groups, TextureMotionOffset(sector, 3));
         }
 
-        private void AddPlatformSurface(List<RothVertex> polygon,List<int> triangles,short height,ushort textureIndex,byte sx,byte sy,byte scaleFlags,bool ceiling,bool textured,List<Vector3> vertices,List<Vector2> uvs,Dictionary<int,List<int>> groups)
+        private void AddPlatformSurface(List<RothVertex> polygon,List<int> triangles,short height,ushort textureIndex,byte sx,byte sy,byte scaleFlags,bool ceiling,bool textured,List<Vector3> vertices,List<Vector2> uvs,Dictionary<int,List<int>> groups, Vector2Int textureOffset)
         {
             int key=textured ? (ceiling && IsSkyTexture(textureIndex) ? SkyMaterialKey : SectorMaterialKey(textureIndex, ceiling?FallbackCeiling:FallbackFloor)) : (ceiling?FallbackCeiling:FallbackFloor);
             List<int> dest=GetGroup(groups,key); int baseIndex=vertices.Count;
             byte flags=(byte)(scaleFlags & 0x3C);
-            for(int i=0;i<polygon.Count;i++) { vertices.Add(ConvertPoint(polygon[i],height)); uvs.Add(SectorUv(polygon[i],polygon,textureIndex,sx,sy,flags,0,ceiling,textured)); }
+            for(int i=0;i<polygon.Count;i++) { vertices.Add(ConvertPoint(polygon[i],height)); uvs.Add(SectorUv(polygon[i],polygon,textureIndex,sx,sy,flags,0,ceiling,textured,textureOffset)); }
             for(int i=0;i<triangles.Count;i+=3)
             {
                 bool reverse = ceiling ? MirrorWorldX : !MirrorWorldX;

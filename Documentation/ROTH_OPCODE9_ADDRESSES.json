@@ -1,0 +1,26 @@
+{
+  "exe_sha256": "e2d54427cd0692798e2df457b1ea8d3bca8cf1383ec2d4ea782165fe0ba56a05",
+  "verified_fixup_records": 14968,
+  "object": 1,
+  "dispatcher_offset_hex": "0x25987",
+  "call_offset_hex": "0x2598D",
+  "table_offset_hex": "0x20740",
+  "entry_9_offset_hex": "0x20764",
+  "handler_9_offset_hex": "0x22A99",
+  "movement_callback_candidates": [
+    {
+      "table_index": 74,
+      "object1_offset_hex": "0x22D51"
+    },
+    {
+      "table_index": 76,
+      "object1_offset_hex": "0x22BD9"
+    }
+  ],
+  "frame_speed_global": {
+    "object": 3,
+    "offset_hex": "0x1570C"
+  },
+  "status": "static address and LE-fixup verification on original user-owned GOG binary; DOS runtime behavior still unverified",
+  "does_not_include": "proprietary executable code or binary data"
+}

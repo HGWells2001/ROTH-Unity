@@ -103,7 +103,9 @@ namespace ROTHUnity.Runtime
 
                 // Raise the player ahead of an ascending floor to prevent collider penetration.
                 // For descending floors move the player after applying the new geometry.
-                if (standing && deltaWorld > 0f)
+                bool commitStep = reached || nextRaw != currentRaw ||
+                    Time.time - m.LastRefresh >= MeshRefreshInterval;
+                if (standing && deltaWorld > 0f && commitStep)
                     Player.Move(Vector3.up * deltaWorld);
 
                 short floor;
@@ -115,7 +117,7 @@ namespace ROTHUnity.Runtime
                         m.Ceiling ? floor : nextRaw, m.Ceiling ? nextRaw : ceiling);
                 if (crushed)
                 {
-                    if (standing && deltaWorld > 0f)
+                    if (standing && deltaWorld > 0f && commitStep)
                         Player.Move(Vector3.down * deltaWorld);
                     // Preserve current height and retry while blocked.
                     continue;
@@ -123,7 +125,7 @@ namespace ROTHUnity.Runtime
                 m.Current = proposed;
                 bool reached = Mathf.Approximately(m.Current, m.End);
                 // Every reached position is committed once, regardless of refresh interval.
-                if (reached || Time.time - m.LastRefresh >= MeshRefreshInterval)
+                if (commitStep)
                 {
                     Builder.RuntimeSetSectorHeight(m.Id, m.Ceiling,
                         (short)Mathf.Clamp(Mathf.RoundToInt(m.Current), short.MinValue, short.MaxValue));

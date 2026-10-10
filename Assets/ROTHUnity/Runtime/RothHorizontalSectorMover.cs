@@ -35,10 +35,11 @@ namespace ROTHUnity.Runtime
         public void CancelAll() { _motions.Clear(); }
 
         public bool Move(ushort sectorId, bool alongX, short start, short end,
-            ushort revertTicks, bool repeat)
+            ushort revertTicks, bool repeat, ushort flags = 0)
         {
             if (Builder == null) Builder = GetComponent<RothMapMeshBuilder>();
             if (Builder == null) return false;
+            Builder.RuntimeSetSectorTextureFollowFlags(sectorId, flags);
             Vector2Int existing;
             if (!Builder.RuntimeGetSectorTranslation(sectorId, out existing)) return false;
             for (int i = _motions.Count - 1; i >= 0; --i)

@@ -73,6 +73,7 @@ namespace ROTHUnity.Runtime
                 throw new FileNotFoundException("Select a valid original ROTH .RAW map.", RawMapPath);
 
             DisposeTextureFactory();
+            RuntimeClearSectorTranslations();
             _map = RothRawMapReader.Read(RawMapPath);
             bool textured = UseOriginalTextures && !string.IsNullOrWhiteSpace(DasPath) && File.Exists(DasPath);
             if (textured)
@@ -212,6 +213,85 @@ namespace ROTHUnity.Runtime
             Vector3 center = transform.InverseTransformPoint(player.transform.TransformPoint(player.center));
             float bottom = center.y - player.height * 0.5f;
             return Mathf.Abs(bottom - floorHeight * HeightScale) <= tolerance;
+        }
+
+        // Isolate vertices before translating RAW sectors; keep neighboring vertex indices intact.
+        private readonly Dictionary<ushort, Dictionary<int, RothVertex>> _movingSectorVertices =
+            new Dictionary<ushort, Dictionary<int, RothVertex>>();
+        private readonly Dictionary<ushort, Vector2Int> _movingSectorOffsets =
+            new Dictionary<ushort, Vector2Int>();
+
+        public void RuntimeClearSectorTranslations()
+        {
+            _movingSectorVertices.Clear();
+            _movingSectorOffsets.Clear();
+        }
+
+        public bool RuntimeGetSectorTranslation(ushort id, out Vector2Int offset)
+        {
+            offset = Vector2Int.zero;
+            if (_map == null || FindSectorById(id) == null) return false;
+            _movingSectorOffsets.TryGetValue(id, out offset);
+            return true;
+        }
+
+        private bool PrepareSectorTranslation(ushort id)
+        {
+            if (_map == null) return false;
+            if (_movingSectorVertices.ContainsKey(id)) return true;
+            RothSector sector = FindSectorById(id);
+            if (sector == null || sector.FirstFaceIndex < 0) return false;
+            var originals = new Dictionary<int, RothVertex>();
+            var remapped = new Dictionary<int, int>();
+            int end = Math.Min(_map.Faces.Count, sector.FirstFaceIndex + sector.FacesCount);
+            for (int f = sector.FirstFaceIndex; f < end; f++)
+            {
+                RothFace face = _map.Faces[f];
+                int[] indices = {face.VertexIndex01, face.VertexIndex02};
+                for (int a = 0; a < 2; a++)
+                {
+                    int idx = indices[a];
+                    if (idx < 0 || idx >= _map.Vertices.Count) return false;
+                    int clone;
+                    if (!remapped.TryGetValue(idx, out clone))
+                    {
+                        clone = _map.Vertices.Count;
+                        originals.Add(clone, _map.Vertices[idx]);
+                        _map.Vertices.Add(_map.Vertices[idx]);
+                        remapped.Add(idx, clone);
+                    }
+                    if (a == 0) face.VertexIndex01 = clone;
+                    else face.VertexIndex02 = clone;
+                }
+            }
+            _movingSectorVertices.Add(id, originals);
+            _movingSectorOffsets[id] = Vector2Int.zero;
+            return true;
+        }
+
+        public bool RuntimeSetSectorTranslation(ushort sectorId, Vector2Int rawOffset)
+        {
+            if (!PrepareSectorTranslation(sectorId)) return false;
+            var original = _movingSectorVertices[sectorId];
+            foreach (var entry in original)
+            {
+                RothVertex v = entry.Value;
+                _map.Vertices[entry.Key] = new RothVertex(
+                    (short)Mathf.Clamp(v.X + rawOffset.x, short.MinValue, short.MaxValue),
+                    (short)Mathf.Clamp(v.Y + rawOffset.y, short.MinValue, short.MaxValue));
+            }
+            Vector2Int previous = _movingSectorOffsets[sectorId];
+            Vector2Int delta = rawOffset - previous;
+            _movingSectorOffsets[sectorId] = rawOffset;
+            int sectorIndex = _map.Sectors.IndexOf(FindSectorById(sectorId));
+            foreach (RothObject obj in _map.Objects)
+                if (obj.SectorIndex == sectorIndex)
+                {
+                    obj.PosX = (short)Mathf.Clamp(obj.PosX + delta.x, short.MinValue, short.MaxValue);
+                    obj.PosY = (short)Mathf.Clamp(obj.PosY + delta.y, short.MinValue, short.MaxValue);
+                }
+            RefreshRuntimeGeometry(rebuildObjects: delta != Vector2Int.zero);
+            return true;
         }
 
         public bool RuntimeChangeFloorTexture(ushort sectorId, ushort textureIndex, ushort packedShift, ushort flags)

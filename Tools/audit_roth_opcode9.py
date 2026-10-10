@@ -77,28 +77,62 @@ def analyze(executable_bytes):
         raise NotFound(f'Expected exactly one verified 128-entry RAW dispatcher, found {len(found)}')
     at,table,opcode_table=found[0]
     handler=opcode_table[9]
-    # Animation callbacks are two function pointers in the same dispatch region.
-    # They are identified structurally, NOT assumed equivalent to DOS opcode 9.
-    candidates=[]
-    for index,off in sorted(opcode_table.items()):
-        if (data[off:off+len(UPDATE_PREFIX)]==UPDATE_PREFIX or
-            data[off:off+len(ALT_UPDATE_PREFIX)]==ALT_UPDATE_PREFIX):
-            candidates.append({'table_index':index,'target_object':1,'target_offset':off})
-    # The update routine next to the opcode-9 handler exposes an unambiguous
-    # frame-delta multiply (global 32-bit time value * per-command byte speed).
-    tick_hint=bytes.fromhex('a1 0c 57 01 00 f6 46 05 40')
-    speed_hint=bytes.fromhex('0f b6 57 07 0f af c2')
-    hints=[]
-    for index,off in sorted(opcode_table.items()):
-        if index!=74 or data[off:off+len(UPDATE_PREFIX)]!=UPDATE_PREFIX:continue
-        segment=data[off:off+64]
-        if tick_hint in segment and speed_hint in segment:
-            hints.append({'table_index':index,'object':1,'offset':off,
-                          'global_tick_read_object3_offset':0x1570c,
-                          'speed_operand':'BYTE [command + 7]',
-                          'multiply':'imul eax,edx',
-                          'fraction_branch_test':'BYTE [command + 6] & 0x04',
-                          'fraction_right_shift':6})
+    # A second indirect call in the animation list uses the SAME function
+    # pointer table, but with an independently relocated base. The scheduler
+    # loads the original command opcode from animation[4]. The base shift
+    # maps command 9 to the callback entry 76, command 7 to entry 74.
+    animation_pattern=bytes.fromhex('0f b6 58 04 ff 14 9d')
+    animation_dispatches=[]
+    search=0
+    while True:
+        p=data.find(animation_pattern,search)
+        if p<0:break
+        search=p+1
+        fix=loc.get((1,p+len(animation_pattern)))
+        if (fix is None or fix['source_type']!=7 or
+            fix['target_type']!=0 or fix['target_index']!=1 or
+            fix['target_object_offset'] is None):continue
+        offset=fix['target_object_offset']-table
+        if offset<0 or offset%4:continue
+        shift=offset//4
+        if shift+9>=128:continue
+        horizontal=opcode_table[shift+9]
+        vertical=opcode_table[shift+7]
+        if data[horizontal:horizontal+len(ALT_UPDATE_PREFIX)]!=ALT_UPDATE_PREFIX:continue
+        if data[vertical:vertical+len(UPDATE_PREFIX)]!=UPDATE_PREFIX:continue
+        animation_dispatches.append((p,shift,horizontal,vertical))
+    if len(animation_dispatches)!=1:
+        raise NotFound('Expected one relocated animation dispatcher for RAW 7/9, found '+str(len(animation_dispatches)))
+    animation_site,shift,horizontal,vertical=animation_dispatches[0]
+    # Both callbacks load a shared frame delta from the identical object-3
+    # global. Check relocation *targets* rather than trusting MZ offsets.
+    def tick_reference(callback, operand_relative):
+        fix=loc.get((1,callback+operand_relative))
+        return fix is not None and fix['target_type']==0 and fix['target_index']==3 and fix['target_object_offset']==0x1570c
+    if not tick_reference(horizontal,0x13) or not tick_reference(vertical,0x9):
+        raise NotFound('The expected frame-delta references could not be validated')
+    speed_signature=bytes.fromhex('0f b6 57 07 0f af c2')
+    if speed_signature not in data[horizontal:horizontal+0x70]:
+        raise NotFound('Horizontal callback does not contain speed multiply')
+    fraction_signature=bytes.fromhex('f6 47 06 04 74 16 8a 56 06 83 e2 3f 01 d0 88 46 06 c1 e8 06')
+    if fraction_signature not in data[vertical:vertical+0x60]:
+        raise NotFound('Vertical callback does not contain 6-bit fraction path')
+    # The horizontal callback region does not contain that vertical path.
+    if fraction_signature in data[horizontal:vertical]:
+        raise NotFound('Unexpected fraction instruction signature in horizontal callback')
+    # Main loop writes the frame/tick delta to the shared global. The
+    # preceding instruction derives it from a 16-bit counter in two loops.
+    tick_writer_signatures=(
+        bytes.fromhex('0f bf 05 ac 0f 02 00 89 c2 2b 55 fc 89 15 0c 57 01 00'),
+        bytes.fromhex('0f bf 05 ac 0f 02 00 89 c2 2b 55 f8 89 15 0c 57 01 00'),
+    )
+    tick_writers=[]
+    for sign in tick_writer_signatures:
+        pos=data.find(sign)
+        if pos>=0:
+            fix=loc.get((1,pos+14))
+            if fix is not None and fix['target_type']==0 and fix['target_index']==3 and fix['target_object_offset']==0x1570c:
+                tick_writers.append(pos+12)
     return {
         'exe_sha256':r['sha256'],
         'validated_fixup_records':len(records),
@@ -112,14 +146,25 @@ def analyze(executable_bytes):
         'opcode_9_handler_object_offset':handler,
         'opcode_9_initial_state_check':'BYTE [esi + 2] & 0x20',
         'opcode_9_axis_test':'BYTE [esi + 6] & 0x40',
-        'opcode_9_known_callback_entries': [x for x in candidates if x['table_index'] in (74,76)],
-        'opcode_9_frame_speed_clues':hints,
+        'animation_dispatch_object_offset':animation_site,
+        'animation_dispatch_table_object_offset':table+shift*4,
+        'animation_dispatch_table_index_shift':shift,
+        'opcode_9_update_table_index':shift+9,
+        'opcode_9_update_object_offset':horizontal,
+        'opcode_7_update_table_index':shift+7,
+        'opcode_7_update_object_offset':vertical,
+        'opcode_9_speed_operand':'BYTE [command + 7]',
+        'opcode_9_speed_expression':'frame_delta * unsigned_byte_speed; no 6-bit fractional path in this callback',
+        'opcode_7_fractional_path':'flag byte[command+6]&4; remainder from animation[6]&63; right shift 6',
+        'frame_delta_object_3_offset':0x1570c,
+        'frame_delta_writer_object_offsets':tick_writers,
+        'frame_delta_real_seconds_per_tick':'not identified',
         'opcode_9_handler_prefix_validated':True,
         'interpretation_limits':[
             'Object offsets are not file offsets; use an LE loader in Ghidra.',
             'Opcode 9 entry is verified from a relocated 128-entry call table.',
-            'Callback relationship to opcode 9 is supported by code adjacency and table refs; dynamic registration needs confirmation.',
-            'Movement scale, timing base, return-state semantics and clamping still require more analysis and DOS runtime validation.',
+            'Opcode 9 callback is proven by the second relocated animation dispatcher at object1+0x247c8; index 76 points to object1+0x22bd9.',
+            'The 1/64 fractional accumulator previously attributed to opcode 9 belongs to opcode 7 instead; movement geometry, repeat states and real-time tick frequency still need validation.',
             'The previous Unity assumption end-start displacement is not established by this audit.'
         ]
     }

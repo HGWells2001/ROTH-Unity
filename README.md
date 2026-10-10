@@ -79,3 +79,7 @@ Experimental CharacterController transport on moving floors and capsule clearanc
 
 ## 0.10.8 — RAW moving sectors
 Experimental RAW opcode 9 horizontal movement (X/Z), isolated vertices, sector objects and grounded rider carry, separate floor/ceiling/platform texture-follow flags, auto-return and auto-repeat. Retail audit of 32 unique opcode 9 commands included as `Tools/validate_raw9.py`. See Documentation/MILESTONE_0_10_8.md for limitations. Unity build not verified.
+
+
+## 0.10.9 — RAW9 safety
+Added overflow-atomic sector translations, position-preserving motion retriggers, rider rollback and regression tests. This is **not** a proven retail-faithful implementation. See `Documentation/MILESTONE_0_10_9.md`.

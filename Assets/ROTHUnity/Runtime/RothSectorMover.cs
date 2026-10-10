@@ -103,6 +103,7 @@ namespace ROTHUnity.Runtime
 
                 // Raise the player ahead of an ascending floor to prevent collider penetration.
                 // For descending floors move the player after applying the new geometry.
+                bool reached = Mathf.Approximately(proposed, m.End);
                 bool commitStep = reached || nextRaw != currentRaw ||
                     Time.time - m.LastRefresh >= MeshRefreshInterval;
                 if (standing && deltaWorld > 0f && commitStep)
@@ -123,7 +124,6 @@ namespace ROTHUnity.Runtime
                     continue;
                 }
                 m.Current = proposed;
-                bool reached = Mathf.Approximately(m.Current, m.End);
                 // Every reached position is committed once, regardless of refresh interval.
                 if (commitStep)
                 {

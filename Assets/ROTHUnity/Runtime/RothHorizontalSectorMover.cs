@@ -49,10 +49,11 @@ namespace ROTHUnity.Runtime
             _motions.Add(new Motion {
                 SectorId = sectorId, AlongX = alongX,
                 Position = alongX ? existing.x : existing.y,
-                // Treat signed end minus start as travel distance, not mesh-origin offset.
-                Destination = (float)end - start,
-                OutwardDestination = (float)end - start,
-                ReturnPosition = 0f,
+                // End-start remains an unverified RAW displacement.
+                // Re-triggers now begin at the live in-flight sector position.
+                Destination = (alongX ? existing.x : existing.y) + (float)end - start,
+                OutwardDestination = (alongX ? existing.x : existing.y) + (float)end - start,
+                ReturnPosition = alongX ? existing.x : existing.y,
                 Speed = Mathf.Max(1f, ((flags >> 8) & 255) == 0 ? RawUnitsPerSecond :
                     ((flags >> 8) & 255) * Mathf.Max(1f, RawSpeedPerFlagUnit)),
                 ReturnDelay = revertTicks * Mathf.Max(0f, AutoRevertTickSeconds),
@@ -93,6 +94,13 @@ namespace ROTHUnity.Runtime
                         (Builder.MirrorWorldX ? -delta.x : delta.x) * Builder.CoordinateScale,
                         0f, delta.y * Builder.CoordinateScale);
                     Vector3 worldDelta = Builder.transform.TransformVector(localDelta);
+                    // Commit geometry first. Failed vertex/object bounds checks
+                    // must not move the player.
+                    if (!Builder.RuntimeSetSectorTranslation(m.SectorId, after))
+                    {
+                        _motions.RemoveAt(i);
+                        continue;
+                    }
                     if (onPlatform)
                     {
                         Vector3 oldPosition = Player.transform.position;
@@ -100,14 +108,11 @@ namespace ROTHUnity.Runtime
                         Vector3 achieved = Player.transform.position - oldPosition;
                         if (Vector3.Dot(achieved, worldDelta) + 0.001f < worldDelta.sqrMagnitude)
                         {
+                            // Roll back the sector if the player's collision clips travel.
+                            Builder.RuntimeSetSectorTranslation(m.SectorId, before);
                             Player.Move(-achieved);
                             continue;
                         }
-                    }
-                    if (!Builder.RuntimeSetSectorTranslation(m.SectorId, after))
-                    {
-                        _motions.RemoveAt(i);
-                        continue;
                     }
                 }
                 m.Position = next;

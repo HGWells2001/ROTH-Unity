@@ -1,0 +1,121 @@
+{
+  "exe_sha256": "e2d54427cd0692798e2df457b1ea8d3bca8cf1383ec2d4ea782165fe0ba56a05",
+  "format": "DOS MZ+LE, object 1 code",
+  "opcode_9_initialization_object1_offset": "0x22A99",
+  "opcode_9_update_object1_offset": "0x22BD9",
+  "shared_completion_object1_range": [
+    "0x22FD1",
+    "0x23032"
+  ],
+  "wait_counter_object1_range": [
+    "0x23033",
+    "0x23041"
+  ],
+  "frame_delta_global": "object3+0x1570C",
+  "source": "static x86/LE analysis; original runtime still unverified",
+  "verified_instruction_sites": 30,
+  "completion_state_truth_table": [
+    {
+      "timeout": 0,
+      "repeat_bit_0x20": false,
+      "animation_phase_bit_0x20": false,
+      "branch": "no_repeat_no_timeout_disable_command",
+      "callback_return": -1,
+      "animation_flags": 0,
+      "animation_timeout_word": null,
+      "command_state_and_mask": 222,
+      "command_state_or_mask": 8,
+      "command_state_xor_mask": 0
+    },
+    {
+      "timeout": 0,
+      "repeat_bit_0x20": false,
+      "animation_phase_bit_0x20": true,
+      "branch": "no_repeat_no_timeout_disable_command",
+      "callback_return": -1,
+      "animation_flags": 32,
+      "animation_timeout_word": null,
+      "command_state_and_mask": 222,
+      "command_state_or_mask": 8,
+      "command_state_xor_mask": 0
+    },
+    {
+      "timeout": 0,
+      "repeat_bit_0x20": true,
+      "animation_phase_bit_0x20": false,
+      "branch": "repeat_no_timeout_toggle_command",
+      "callback_return": -1,
+      "animation_flags": 0,
+      "animation_timeout_word": null,
+      "command_state_and_mask": 222,
+      "command_state_or_mask": 0,
+      "command_state_xor_mask": 2
+    },
+    {
+      "timeout": 0,
+      "repeat_bit_0x20": true,
+      "animation_phase_bit_0x20": true,
+      "branch": "repeat_no_timeout_toggle_command",
+      "callback_return": -1,
+      "animation_flags": 32,
+      "animation_timeout_word": null,
+      "command_state_and_mask": 222,
+      "command_state_or_mask": 0,
+      "command_state_xor_mask": 2
+    },
+    {
+      "timeout": 12,
+      "repeat_bit_0x20": false,
+      "animation_phase_bit_0x20": false,
+      "branch": "arm_timeout_reverse",
+      "callback_return": 0,
+      "animation_flags": 224,
+      "animation_timeout_word": 12,
+      "command_state_and_mask": 255,
+      "command_state_or_mask": 0,
+      "command_state_xor_mask": 0
+    },
+    {
+      "timeout": 12,
+      "repeat_bit_0x20": false,
+      "animation_phase_bit_0x20": true,
+      "branch": "arm_timeout_reverse",
+      "callback_return": 0,
+      "animation_flags": 192,
+      "animation_timeout_word": 12,
+      "command_state_and_mask": 255,
+      "command_state_or_mask": 0,
+      "command_state_xor_mask": 0
+    },
+    {
+      "timeout": 12,
+      "repeat_bit_0x20": true,
+      "animation_phase_bit_0x20": false,
+      "branch": "arm_timeout_reverse",
+      "callback_return": 0,
+      "animation_flags": 224,
+      "animation_timeout_word": 12,
+      "command_state_and_mask": 255,
+      "command_state_or_mask": 0,
+      "command_state_xor_mask": 0
+    },
+    {
+      "timeout": 12,
+      "repeat_bit_0x20": true,
+      "animation_phase_bit_0x20": true,
+      "branch": "timeout_repeat_phase_finish",
+      "callback_return": -1,
+      "animation_flags": 32,
+      "animation_timeout_word": null,
+      "command_state_and_mask": 222,
+      "command_state_or_mask": 0,
+      "command_state_xor_mask": 0
+    }
+  ],
+  "caveats": [
+    "Completion branch model only, not complete DOS runtime state machine.",
+    "Timer delta is DOS ticks, frequency unknown.",
+    "Unity Repeat and raw flag bit 0x20 are not interchangeable.",
+    "No original executable bytes included."
+  ]
+}

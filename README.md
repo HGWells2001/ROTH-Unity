@@ -98,4 +98,8 @@ Analyzed an original user-owned ROTH.EXE (SHA-256 `e2d54427cd0692798e2df457b1ea8
 
 
 ## 0.10.14 — Original RAW opcode 9 located in ROTH.EXE
-Validated 14,968 LE fixup records from the user's own GOG executable and traced the 128-entry RAW command dispatcher to opcode 9 (object 1 + `0x22A99`). Identified coordinate-moving update candidates and a 6-bit fractional speed path. This does **not** yet prove DOS timing or the Unity translation algorithm, which remain experimental. See `Documentation/MILESTONE_0_10_14.md` and `Documentation/ROTH_OPCODE9_ADDRESSES.json`. No proprietary game bytes are committed.
+Validated 14,968 LE fixup records from the user's own GOG executable and traced the 128-entry RAW command dispatcher to opcode 9 (object 1 + `0x22A99`). Identified initial movement update candidates. **CORRECTED in 0.10.15:** the 6-bit fractional speed path belongs to opcode 7, not opcode 9. This does **not** yet prove DOS timing or the Unity translation algorithm, which remain experimental. See `Documentation/MILESTONE_0_10_14.md` and `Documentation/ROTH_OPCODE9_ADDRESSES.json`. No proprietary game bytes are committed.
+
+
+## 0.10.15 — Verified horizontal movement callback, correcting 0.10.14
+Original LE animation runner at object1+0x247CC uses the same relocated function table with index offset +67. This proves **opcode 9 update = 0x22BD9**, **opcode 7 update = 0x22D51** and assigns the 6-bit fractional path to opcode 7, correcting earlier claims. The frame delta derives from a 16-bit counter, but real-time tick frequency is not established. Audit and 12 tests updated; Unity movement remains experimental and unchanged. See `Documentation/MILESTONE_0_10_15.md`.

@@ -1,0 +1,22 @@
+ROTH Unity 0.10.2.2
+==============
+Open this folder in Unity Hub with Unity 6000.6.0f1.
+
+Preferred original game path:
+C:\Program Files (x86)\GOG Galaxy\Games\Realms of the Haunting
+
+No original Realms of the Haunting assets are included.
+
+Recommended workflow:
+1. Open Unity.
+2. Choose ROTH Unity -> Quick Start GOG.
+3. Confirm the detected game path.
+4. Select any discovered retail RAW map.
+5. Click Create playable map test.
+6. Enter Play Mode. WASD + mouse, Space = jump, left/right click = interaction, Esc = release mouse.
+
+Useful diagnostics:
+ROTH Unity -> Retail Map Resource Audit
+ROTH Unity -> GDV Inspector
+
+Mirror World X should remain OFF.

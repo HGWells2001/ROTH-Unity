@@ -41,6 +41,11 @@ namespace ROTHUnity.Runtime
         [Tooltip("Delay in seconds between obstruction rechecks.")]
         public float ObstructionRetrySeconds = 0.25f;
 
+        [Tooltip("Carry the player when standing on a moving sector floor.")]
+        public bool CarryPlayerOnFloors = true;
+        [Tooltip("Do not move sectors into the player's vertical capsule.")]
+        public bool PreventVerticalCrush = true;
+
         private readonly List<Motion> _motions = new List<Motion>();
 
         public bool Move(ushort sectorId, bool ceiling, short start, short end, bool slow, ushort autoCloseTicks = 0)
@@ -86,7 +91,36 @@ namespace ROTHUnity.Runtime
                     m.AutoCloseTime = -1f;
                     m.ReachedOpenPosition = false;
                 }
-                m.Current = Mathf.MoveTowards(m.Current, m.End, m.Speed * Time.deltaTime);
+                // Follow the RAW height movement with the player's CharacterController.
+                // Carry only when feet start at the current floor level and footprint overlaps.
+                float proposed = Mathf.MoveTowards(m.Current, m.End, m.Speed * Time.deltaTime);
+                short currentRaw = (short)Mathf.Clamp(Mathf.RoundToInt(m.Current), short.MinValue, short.MaxValue);
+                short nextRaw = (short)Mathf.Clamp(Mathf.RoundToInt(proposed), short.MinValue, short.MaxValue);
+                bool occupying = Player != null && Builder.RuntimePlayerOccupiesSector(m.Id, Player);
+                bool standing = !m.Ceiling && CarryPlayerOnFloors && occupying &&
+                    Builder.RuntimePlayerStandsOnFloor(m.Id, Player, currentRaw);
+                float deltaWorld = (nextRaw - currentRaw) * Builder.HeightScale * Builder.transform.lossyScale.y;
+
+                // Raise the player ahead of an ascending floor to prevent collider penetration.
+                // For descending floors move the player after applying the new geometry.
+                if (standing && deltaWorld > 0f)
+                    Player.Move(Vector3.up * deltaWorld);
+
+                short floor;
+                short ceiling;
+                bool hasFloor = Builder.RuntimeGetSectorHeight(m.Id, false, out floor);
+                bool hasCeiling = Builder.RuntimeGetSectorHeight(m.Id, true, out ceiling);
+                bool crushed = PreventVerticalCrush && occupying && hasFloor && hasCeiling &&
+                    Builder.RuntimeWouldCrushPlayer(m.Id, Player,
+                        m.Ceiling ? floor : nextRaw, m.Ceiling ? nextRaw : ceiling);
+                if (crushed)
+                {
+                    if (standing && deltaWorld > 0f)
+                        Player.Move(Vector3.down * deltaWorld);
+                    // Preserve current height and retry while blocked.
+                    continue;
+                }
+                m.Current = proposed;
                 bool reached = Mathf.Approximately(m.Current, m.End);
                 // Every reached position is committed once, regardless of refresh interval.
                 if (reached || Time.time - m.LastRefresh >= MeshRefreshInterval)
@@ -94,6 +128,8 @@ namespace ROTHUnity.Runtime
                     Builder.RuntimeSetSectorHeight(m.Id, m.Ceiling,
                         (short)Mathf.Clamp(Mathf.RoundToInt(m.Current), short.MinValue, short.MaxValue));
                     m.LastRefresh = Time.time;
+                    if (standing && deltaWorld < 0f)
+                        Player.Move(Vector3.up * deltaWorld);
                 }
                 if (!reached) continue;
                 if (m.Returning || m.HoldDuration <= 0f)

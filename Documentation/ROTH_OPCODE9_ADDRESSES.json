@@ -7,20 +7,20 @@
   "table_offset_hex": "0x20740",
   "entry_9_offset_hex": "0x20764",
   "handler_9_offset_hex": "0x22A99",
-  "movement_callback_candidates": [
-    {
-      "table_index": 74,
-      "object1_offset_hex": "0x22D51"
-    },
-    {
-      "table_index": 76,
-      "object1_offset_hex": "0x22BD9"
-    }
-  ],
   "frame_speed_global": {
     "object": 3,
     "offset_hex": "0x1570C"
   },
-  "status": "static address and LE-fixup verification on original user-owned GOG binary; DOS runtime behavior still unverified",
-  "does_not_include": "proprietary executable code or binary data"
+  "status": "dual-dispatcher and frame-delta structurally verified on the original GOG binary; DOS tick frequency and full motion state machine still unverified",
+  "does_not_include": "proprietary executable code or binary data",
+  "animation_dispatcher_offset_hex": "0x247CC",
+  "animation_table_base_offset_hex": "0x2084C",
+  "animation_index_shift": 67,
+  "horizontal_opcode9_update_offset_hex": "0x22BD9",
+  "vertical_opcode7_update_offset_hex": "0x22D51",
+  "frame_delta_loop_writer_offsets_hex": [
+    "0x102DE",
+    "0x10479"
+  ],
+  "correction_0_10_15": "0x22D51 has opcode7's six-bit accumulator. Opcode9 update 0x22BD9 is resolved by the second relocated animation dispatcher."
 }

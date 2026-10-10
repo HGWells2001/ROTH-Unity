@@ -87,3 +87,7 @@ Added overflow-atomic sector translations, position-preserving motion retriggers
 
 ## 0.10.10 — RAW9 carry and trace
 Fixes small-step rider obstruction detection and deterministic position rollback. Adds opt-in structured RAW9 trace logs for later DOS comparisons. Experimental and not yet Unity-playtested. See `Documentation/MILESTONE_0_10_10.md`.
+
+
+## 0.10.11 — RAW9 trace audit
+Read-only Unity log parser with per-sector JSON summaries, anomaly diagnostics, and eight synthetic Python tests. Does not establish DOS fidelity. See `Documentation/MILESTONE_0_10_11.md`.

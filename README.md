@@ -71,3 +71,7 @@ Prototype automatic door obstruction prevention using RAW sector polygon footpri
 
 ## 0.10.6
 Sector-mover countdown begins after reaching the open position; re-triggers preserve current position. See Documentation/MILESTONE_0_10_6.md.
+
+
+## 0.10.7
+Experimental CharacterController transport on moving floors and capsule clearance guard for floor/ceiling motion. See Documentation/MILESTONE_0_10_7.md.

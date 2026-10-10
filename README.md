@@ -95,3 +95,7 @@ Read-only Unity log parser with per-sector JSON summaries, anomaly diagnostics, 
 
 ## 0.10.13 — Verified GOG executable LE layout
 Analyzed an original user-owned ROTH.EXE (SHA-256 `e2d54427cd0692798e2df457b1ea8d3bca8cf1383ec2d4ea782165fe0ba56a05`): confirmed 80386 MZ+LE image, 81 page mappings, three objects and Watcom startup entry. Added `Tools/inspect_roth_le.py` and 10 synthetic tests. See `Documentation/MILESTONE_0_10_13.md`. **The command-9 DOS handler is not yet located; no retail binary is committed.**
+
+
+## 0.10.14 — Original RAW opcode 9 located in ROTH.EXE
+Validated 14,968 LE fixup records from the user's own GOG executable and traced the 128-entry RAW command dispatcher to opcode 9 (object 1 + `0x22A99`). Identified coordinate-moving update candidates and a 6-bit fractional speed path. This does **not** yet prove DOS timing or the Unity translation algorithm, which remain experimental. See `Documentation/MILESTONE_0_10_14.md` and `Documentation/ROTH_OPCODE9_ADDRESSES.json`. No proprietary game bytes are committed.

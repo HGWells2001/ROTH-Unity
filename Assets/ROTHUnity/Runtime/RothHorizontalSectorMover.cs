@@ -17,6 +17,8 @@ namespace ROTHUnity.Runtime
         public float AutoRevertTickSeconds = 0.1f;
         public bool CarryPlayer = true;
         public bool AvoidPlayerObstruction = true;
+        [Tooltip("Emit opt-in RAW9_TRACE lines to the Unity Console for DOS timing comparisons.")]
+        public bool TraceRaw9;
 
         private sealed class Motion
         {
@@ -31,10 +33,31 @@ namespace ROTHUnity.Runtime
             public float ReturnAt = -1f;
             public bool Returning;
             public bool Repeat;
+            public short RawStart;
+            public short RawEnd;
+            public ushort RawFlags;
+            public ushort RawRevertTicks;
         }
         private readonly List<Motion> _motions = new List<Motion>();
 
         public void CancelAll() { _motions.Clear(); }
+
+        // Pipe-separated, invariant-culture records: frame, time (scaled seconds),
+        // sector, axis, event, previous/next RAW X/Y, command start/end,
+        // interpolated position/destination, speed, player XYZ, flags, timeout ticks.
+        private void Trace(Motion motion, string action, Vector2Int before, Vector2Int after)
+        {
+            if (!TraceRaw9) return;
+            Vector3 playerPosition = Player != null ? Player.transform.position : Vector3.zero;
+            Debug.Log(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "RAW9_TRACE|{0}|{1:F6}|{2}|{3}|{4}|{5}|{6}|{7}|{8}|{9}|{10}|{11:F4}|{12:F4}|{13:F4}|{14:F4}|{15:F4}|{16:F4}|{17}|{18}",
+                Time.frameCount, Time.time, motion.SectorId,
+                motion.AlongX ? "X" : "Y", action, before.x, before.y,
+                after.x, after.y, motion.RawStart, motion.RawEnd,
+                motion.Position, motion.Destination, motion.Speed,
+                playerPosition.x, playerPosition.y, playerPosition.z,
+                motion.RawFlags, motion.RawRevertTicks), this);
+        }
 
         public bool Move(ushort sectorId, bool alongX, short start, short end,
             ushort revertTicks, bool repeat, ushort flags = 0)
@@ -46,7 +69,7 @@ namespace ROTHUnity.Runtime
             if (!Builder.RuntimeGetSectorTranslation(sectorId, out existing)) return false;
             for (int i = _motions.Count - 1; i >= 0; --i)
                 if (_motions[i].SectorId == sectorId) _motions.RemoveAt(i);
-            _motions.Add(new Motion {
+            Motion motion = new Motion {
                 SectorId = sectorId, AlongX = alongX,
                 Position = alongX ? existing.x : existing.y,
                 // End-start remains an unverified RAW displacement.
@@ -57,8 +80,12 @@ namespace ROTHUnity.Runtime
                 Speed = Mathf.Max(1f, ((flags >> 8) & 255) == 0 ? RawUnitsPerSecond :
                     ((flags >> 8) & 255) * Mathf.Max(1f, RawSpeedPerFlagUnit)),
                 ReturnDelay = revertTicks * Mathf.Max(0f, AutoRevertTickSeconds),
-                Repeat = repeat
-            });
+                Repeat = repeat,
+                RawStart = start, RawEnd = end,
+                RawFlags = flags, RawRevertTicks = revertTicks
+            };
+            _motions.Add(motion);
+            Trace(motion, "trigger", existing, existing);
             return true;
         }
 
@@ -98,6 +125,7 @@ namespace ROTHUnity.Runtime
                     // must not move the player.
                     if (!Builder.RuntimeSetSectorTranslation(m.SectorId, after))
                     {
+                        Trace(m, "bounds-rejected", before, after);
                         _motions.RemoveAt(i);
                         continue;
                     }
@@ -106,29 +134,56 @@ namespace ROTHUnity.Runtime
                         Vector3 oldPosition = Player.transform.position;
                         Player.Move(worldDelta);
                         Vector3 achieved = Player.transform.position - oldPosition;
-                        if (Vector3.Dot(achieved, worldDelta) + 0.001f < worldDelta.sqrMagnitude)
+                        float required = worldDelta.magnitude;
+                        float along = required > 0.000001f ?
+                            Vector3.Dot(achieved, worldDelta) / required : 0f;
+                        float tolerance = Mathf.Min(0.001f, required * 0.1f);
+                        if (required > 0.000001f && along < required - tolerance)
                         {
-                            // Roll back the sector if the player's collision clips travel.
-                            Builder.RuntimeSetSectorTranslation(m.SectorId, before);
-                            Player.Move(-achieved);
+                            // Undo the sector and restore the exact rider position.
+                            // A compensating CharacterController.Move can itself be blocked.
+                            bool restored = Builder.RuntimeSetSectorTranslation(m.SectorId, before);
+                            bool enabledBefore = Player.enabled;
+                            Player.enabled = false;
+                            Player.transform.position = oldPosition;
+                            Player.enabled = enabledBefore;
+                            Physics.SyncTransforms();
+                            Trace(m, restored ? "rider-blocked" : "rollback-failed", after, before);
+                            if (!restored) _motions.RemoveAt(i);
                             continue;
                         }
                     }
+                    Trace(m, "step", before, after);
                 }
                 m.Position = next;
                 if (!Mathf.Approximately(next, m.Destination)) continue;
                 if (m.Returning)
                 {
-                    if (!m.Repeat) { _motions.RemoveAt(i); continue; }
+                    if (!m.Repeat)
+                    {
+                        Trace(m, "returned", after, after);
+                        _motions.RemoveAt(i);
+                        continue;
+                    }
                     m.Returning = false;
                     m.Destination = m.OutwardDestination;
                     m.ReturnAt = -1f;
+                    Trace(m, "repeat", after, after);
                     continue;
                 }
                 if (m.ReturnDelay <= 0f)
                 {
-                    if (!m.Repeat) _motions.RemoveAt(i);
-                    else { m.Returning = true; m.Destination = m.ReturnPosition; }
+                    if (!m.Repeat)
+                    {
+                        Trace(m, "arrived", after, after);
+                        _motions.RemoveAt(i);
+                    }
+                    else
+                    {
+                        m.Returning = true;
+                        m.Destination = m.ReturnPosition;
+                        Trace(m, "return", after, after);
+                    }
                     continue;
                 }
                 if (m.ReturnAt < 0f) m.ReturnAt = Time.time + m.ReturnDelay;
@@ -137,10 +192,12 @@ namespace ROTHUnity.Runtime
                     Builder.RuntimePlayerOccupiesSector(m.SectorId, Player))
                 {
                     m.ReturnAt = Time.time + 0.25f;
+                    Trace(m, "return-obstructed", after, after);
                     continue;
                 }
                 m.Returning = true;
                 m.Destination = m.ReturnPosition;
+                Trace(m, "return", after, after);
             }
         }
     }

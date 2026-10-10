@@ -56,6 +56,8 @@ namespace ROTHUnity.Runtime
 
             RothSectorMover mover = MapBuilder.GetComponent<RothSectorMover>();
             if (mover != null) mover.CancelAll();
+            RothHorizontalSectorMover horizontal = MapBuilder.GetComponent<RothHorizontalSectorMover>();
+            if (horizontal != null) horizontal.CancelAll();
             MapBuilder.RawMapPath = raw;
             MapBuilder.DasPath = match.DasPath;
             MapBuilder.Rebuild();

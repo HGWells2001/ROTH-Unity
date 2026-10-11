@@ -23,6 +23,8 @@ EVENTS = {
     "trigger", "step", "bounds-rejected", "rider-blocked",
     "rollback-failed", "arrived", "returned", "repeat",
     "return", "return-obstructed",
+    # Opt-in DOS state machine events, introduced after 0.10.22.
+    "retrigger", "wait", "wait-finished", "wait-armed", "reverse",
 }
 INTEGER = {"frame", "sector", "before_x", "before_y", "after_x",
            "after_y", "start", "end", "flags", "revert_ticks"}

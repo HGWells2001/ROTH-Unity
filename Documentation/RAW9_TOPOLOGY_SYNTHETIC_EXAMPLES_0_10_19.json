@@ -1,0 +1,125 @@
+{
+  "warning": "These are SYNTHETIC unit tests. No retail RAW map was analyzed.",
+  "examples": {
+    "isolated_synthetic": {
+      "topology": {
+        "status": "no_static_hazard_detected",
+        "manual_review_required": true,
+        "hazards": [],
+        "external_vertex_reference_faces": [],
+        "external_coincident_faces": [],
+        "cross_sector_sister_edges": [],
+        "invalid_sister_face_indices": []
+      },
+      "selected_first_four_vertex_indices": [
+        0,
+        3,
+        1,
+        2
+      ]
+    },
+    "shared_vertices": {
+      "topology": {
+        "status": "review",
+        "manual_review_required": true,
+        "hazards": [
+          "selected_vertex_referenced_by_other_sector"
+        ],
+        "external_vertex_reference_faces": [
+          4,
+          7
+        ],
+        "external_coincident_faces": [],
+        "cross_sector_sister_edges": [],
+        "invalid_sister_face_indices": []
+      },
+      "selected_first_four_vertex_indices": [
+        0,
+        3,
+        1,
+        2
+      ]
+    },
+    "linked_portal": {
+      "topology": {
+        "status": "review",
+        "manual_review_required": true,
+        "hazards": [
+          "cross_sector_sister_face_touches_selected_vertex"
+        ],
+        "external_vertex_reference_faces": [],
+        "external_coincident_faces": [],
+        "cross_sector_sister_edges": [
+          {
+            "face_index": 1,
+            "sister_face_index": 4,
+            "moving_endpoint_count": 2
+          }
+        ],
+        "invalid_sister_face_indices": []
+      },
+      "selected_first_four_vertex_indices": [
+        0,
+        3,
+        1,
+        2
+      ]
+    },
+    "coincident_independent_geometry": {
+      "topology": {
+        "status": "review",
+        "manual_review_required": true,
+        "hazards": [
+          "external_distinct_vertex_at_selected_coordinates"
+        ],
+        "external_vertex_reference_faces": [],
+        "external_coincident_faces": [
+          4,
+          5,
+          7
+        ],
+        "cross_sector_sister_edges": [],
+        "invalid_sister_face_indices": []
+      },
+      "selected_first_four_vertex_indices": [
+        0,
+        3,
+        1,
+        2
+      ]
+    },
+    "combined_hazards": {
+      "topology": {
+        "status": "review",
+        "manual_review_required": true,
+        "hazards": [
+          "selected_vertex_referenced_by_other_sector",
+          "cross_sector_sister_face_touches_selected_vertex",
+          "external_distinct_vertex_at_selected_coordinates"
+        ],
+        "external_vertex_reference_faces": [
+          4,
+          7
+        ],
+        "external_coincident_faces": [
+          4,
+          5
+        ],
+        "cross_sector_sister_edges": [
+          {
+            "face_index": 1,
+            "sister_face_index": 4,
+            "moving_endpoint_count": 2
+          }
+        ],
+        "invalid_sister_face_indices": []
+      },
+      "selected_first_four_vertex_indices": [
+        0,
+        3,
+        1,
+        2
+      ]
+    }
+  }
+}

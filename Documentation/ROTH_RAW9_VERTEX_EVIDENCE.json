@@ -1,0 +1,26 @@
+{
+  "exe_sha256": "e2d54427cd0692798e2df457b1ea8d3bca8cf1383ec2d4ea782165fe0ba56a05",
+  "face_first_vertex_pointer_byte_offset": 0,
+  "inflight_update": "same signed16 coordinate delta added to all four selected vertex component words",
+  "limits": [
+    "Only first four face records accessed by RAW9 for this GOG executable.",
+    "This verifies raw data selection, not safe Unity portal/mesh mutation or DOS tick synchrony."
+  ],
+  "opcode9_initializer_object1_offset": "0x22a99",
+  "opcode9_updater_object1_offset": "0x22bd9",
+  "raw_face_stride_bytes": 12,
+  "sector_first_face_pointer_byte_offset": 14,
+  "selected_first_face_offsets": [
+    0,
+    12,
+    24,
+    36
+  ],
+  "selection_order": "four coordinate-reference pairs, ascending signed16 stable bubble sort",
+  "verified_global_pointer_relocations": 4,
+  "verified_instruction_sites": 17,
+  "vertex_record_component_offsets": {
+    "X": 8,
+    "Y": 10
+  }
+}

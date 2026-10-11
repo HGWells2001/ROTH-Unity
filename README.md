@@ -119,3 +119,7 @@ The read-only `Tools/audit_roth_pit_timer.py` adds 15 independent instruction-si
 
 ## 0.10.18 — RAW9 vertex geometry audit
 Read-only Unity Editor and Python audits identify the four original face/vertex references selected for command 9. The DOS evidence audit validates 17 instruction sites and four relocations; sixteen synthetic tests pass. See Documentation/MILESTONE_0_10_18.md. No Unity runtime geometry changes or original game assets are included.
+
+
+## 0.10.19 — RAW9 portal and shared-vertex topology preflight
+Added a read-only `RothRaw9TopologyInspector`, extended the Unity Editor RAW9 vertex audit with topology warnings, and included a Python auditor for original RAW maps. It detects selected vertices referenced outside the sector, sister-face portal edges, distinct external vertices at the same coordinates, invalid sister pointers and non-four-face sectors. **94 offline Python tests pass**, including 14 new synthetic/static checks. This does not change runtime movement, and no real retail RAW map or Unity Editor Play Mode was tested in this session. See `Documentation/MILESTONE_0_10_19.md`.

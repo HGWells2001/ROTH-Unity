@@ -115,3 +115,7 @@ Using the user-owned GOG `ROTH.EXE`, verified IRQ0 PIT channel-0 programming (in
 ### 0.10.17 supplementary PIT counter audit
 
 The read-only `Tools/audit_roth_pit_timer.py` adds 15 independent instruction-site checks and 9 LE relocation checks for the IRQ0 → signed-16 timer → RAW9 delta chain. `Tools/test_roth_pit_timer.py` has 15 additional synthetic tests. `RothDosPitClock.cs` is a standalone, unconnected reference for fractional tick accumulation; it does not alter gameplay. See [supplementary PIT audit](Documentation/ROTH_PIT_COUNTER_AUDIT_0_10_17.md). This complements rather than supersedes the 0.10.17 arithmetic milestone.
+
+
+## 0.10.18 — RAW9 vertex geometry audit
+Read-only Unity Editor and Python audits identify the four original face/vertex references selected for command 9. The DOS evidence audit validates 17 instruction sites and four relocations; sixteen synthetic tests pass. See Documentation/MILESTONE_0_10_18.md. No Unity runtime geometry changes or original game assets are included.

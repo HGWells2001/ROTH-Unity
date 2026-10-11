@@ -19,11 +19,14 @@ namespace ROTHUnity.Runtime
         public bool AvoidPlayerObstruction = true;
         [Tooltip("Emit opt-in RAW9_TRACE lines to the Unity Console for DOS timing comparisons.")]
         public bool TraceRaw9;
+        [Tooltip("EXPERIMENTAL: only four DOS-selected vertex coordinate words are moved. Off by default. Refuses unsafe shared geometry and mixed-mode sectors.")]
+        public bool UseSelectedRaw9Vertices;
 
         private sealed class Motion
         {
             public ushort SectorId;
             public bool AlongX;
+            public bool SelectedGeometry;
             public float Position;
             public float Destination;
             public float ReturnPosition;
@@ -64,13 +67,29 @@ namespace ROTHUnity.Runtime
         {
             if (Builder == null) Builder = GetComponent<RothMapMeshBuilder>();
             if (Builder == null) return false;
-            Builder.RuntimeSetSectorTextureFollowFlags(sectorId, flags);
             Vector2Int existing;
             if (!Builder.RuntimeGetSectorTranslation(sectorId, out existing)) return false;
+            bool selected = UseSelectedRaw9Vertices;
+            if (selected)
+            {
+                string reason;
+                if (!Builder.RuntimeTryPrepareSelectedRaw9Motion(sectorId, alongX, out reason))
+                {
+                    Debug.LogWarning("RAW9 selected-vertex mode rejected sector " + sectorId + ": " + reason, this);
+                    return false;
+                }
+            }
+            else if (Builder.RuntimeIsSelectedRaw9MotionActive(sectorId))
+            {
+                Debug.LogWarning("RAW9 sector " + sectorId + " is assigned to the selected-vertex mode until the map rebuilds.", this);
+                return false;
+            }
+            Builder.RuntimeSetSectorTextureFollowFlags(sectorId, flags);
             for (int i = _motions.Count - 1; i >= 0; --i)
                 if (_motions[i].SectorId == sectorId) _motions.RemoveAt(i);
             Motion motion = new Motion {
                 SectorId = sectorId, AlongX = alongX,
+                SelectedGeometry = selected,
                 Position = alongX ? existing.x : existing.y,
                 // End-start remains an unverified RAW displacement.
                 // Re-triggers now begin at the live in-flight sector position.
@@ -123,7 +142,10 @@ namespace ROTHUnity.Runtime
                     Vector3 worldDelta = Builder.transform.TransformVector(localDelta);
                     // Commit geometry first. Failed vertex/object bounds checks
                     // must not move the player.
-                    if (!Builder.RuntimeSetSectorTranslation(m.SectorId, after))
+                    bool committed = m.SelectedGeometry
+                        ? Builder.RuntimeSetSelectedRaw9Translation(m.SectorId, m.AlongX, after)
+                        : Builder.RuntimeSetSectorTranslation(m.SectorId, after);
+                    if (!committed)
                     {
                         Trace(m, "bounds-rejected", before, after);
                         _motions.RemoveAt(i);
@@ -142,7 +164,9 @@ namespace ROTHUnity.Runtime
                         {
                             // Undo the sector and restore the exact rider position.
                             // A compensating CharacterController.Move can itself be blocked.
-                            bool restored = Builder.RuntimeSetSectorTranslation(m.SectorId, before);
+                            bool restored = m.SelectedGeometry
+                                ? Builder.RuntimeSetSelectedRaw9Translation(m.SectorId, m.AlongX, before)
+                                : Builder.RuntimeSetSectorTranslation(m.SectorId, before);
                             bool enabledBefore = Player.enabled;
                             Player.enabled = false;
                             Player.transform.position = oldPosition;

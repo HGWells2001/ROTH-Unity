@@ -132,3 +132,7 @@ A new `UseSelectedRaw9Vertices` checkbox in `RothHorizontalSectorMover` activate
 **This is NOT yet DOS-faithful movement timing.** Motion interpolation still uses `Time.deltaTime` and the provisional `end-start` distance. Python simulation tests cover safe coordinate changes, but no Unity Editor compilation or retail-map Play Mode checks were performed. See [the 0.10.20 technical report](Documentation/MILESTONE_0_10_20.md). The new geometry backend intentionally rejects some maps pending portal and collision analysis.
 
 To try it, attach or find `RothHorizontalSectorMover` on the map GameObject, enable `Use Selected Raw9 Vertices` before triggering command 9 and test a topology-audited four-face sector. Keep it disabled for the existing prototype.
+
+
+## 0.10.21 — Optional nominal DOS tick pacing (experimental)
+The opt-in four-vertex RAW9 backend now has a **second opt-in** timing mode, `UseNominalDosTickPacing` (OFF by default and only available with `UseSelectedRaw9Vertices`). `RothDosTickClock.cs` approximates the verified IRQ0 PIT divisor `0x4216` (~70.53 Hz), accumulating whole ticks and limiting movement allowance to 45 ticks per Unity frame. The byte speed is multiplied by this integer tick delta rather than by seconds; the legacy mover remains unchanged when the checkbox is OFF. Python model tests and source checks passed, but **Unity compilation, Play Mode, real-map behavior and full DOS command-state fidelity remain unverified**. See `Documentation/MILESTONE_0_10_21.md`.

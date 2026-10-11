@@ -26,6 +26,7 @@ The existing **0.10.15 correction remains valid**: opcode-9 callback is object1+
 - On the first trigger, the original command+2 modifier bit 0x02 sets initial direction. On re-trigger, a valid active zero-timeout repeat command toggles direction and bit 0x02 *without* creating a new sector motion. Unsupported concurrent commands in the same sector fail closed.
 - At the signed absolute coordinate bound, the verified completion branch either terminates, arms the 16-bit timeout and reverses direction, or takes the special phase path. A waiting update only decrements the DOS tick timer; movement resumes on the following update once the wait bit is cleared.
 - `RAW9_DOS_STATE|frame|commandIndex|sector|event|commandState|animationFlags|waitTicks|active` is emitted when `TraceRaw9` is enabled. Existing `RAW9_TRACE`, `RAW9_DOS_BOUNDS` and `ROTH_PIT_TRACE` formats are unchanged.
+- The pre-existing `Tools/analyze_raw9_trace.py` parser accepts the additional `RAW9_TRACE` events `retrigger`, `wait`, `wait-finished`, `wait-armed`, and `reverse`. Three corresponding Python parser regression tests were added. These three newer cases were reviewed structurally, **but were not executed in the local legacy-suite run**.
 
 ## Activation / testing on Windows
 

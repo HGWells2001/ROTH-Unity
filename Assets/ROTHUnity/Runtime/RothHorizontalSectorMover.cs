@@ -125,6 +125,11 @@ namespace ROTHUnity.Runtime
                     Debug.LogWarning("RAW9 DOS bounds rejected sector " + sectorId + ": " + reason, this);
                     return false;
                 }
+                if (TraceRaw9)
+                    Debug.Log(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        "RAW9_DOS_BOUNDS|{0}|{1}|{2}|{3}|{4}|{5}|{6}",
+                        sectorId, alongX ? "X" : "Y", dosReverse ? "reverse" : "forward",
+                        minimum, maximum, rawTarget, plannedDosOffset), this);
             }
             if (tickPacing && DosTickClock == null)
             {

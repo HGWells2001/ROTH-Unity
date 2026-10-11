@@ -1,3 +1,5 @@
+> **0.10.17 CLOCK CORRECTION:** The address 0x20FAC in old unrelocated x86 operands is an LE relocation to **object 3 + 0x20FAC**, not object 1. The IRQ0 handler and PIT divisors were traced in 0.10.17. The nominal IRQ rate is about 70.527 Hz at divisor 0x4216; actual runtime jitter has not been measured. See [MILESTONE_0_10_17.md](MILESTONE_0_10_17.md). The original investigation is preserved below.
+
 # ROTH Unity 0.10.15: Verified opcode-9 animation dispatch, correction of 0.10.14
 
 **Scope:** Ground-truth reverse engineering of the user-supplied GOG `ROTH.EXE`, not a Unity runtime change or proof of game parity. No retail binary bytes included in repository or distribution.

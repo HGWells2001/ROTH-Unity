@@ -1,6 +1,6 @@
 # ROTH Unity
 
-**Current development package: 0.10.2.2**
+**Current development milestone: 0.10.22 (original-RAW9 optional bounds mode)**
 
 An open-source Unity reimplementation of **Realms of the Haunting** that reads a legally obtained copy of the original game data. Original game assets are not distributed with this project.
 
@@ -136,3 +136,7 @@ To try it, attach or find `RothHorizontalSectorMover` on the map GameObject, ena
 
 ## 0.10.21 — Optional nominal DOS tick pacing (experimental)
 The opt-in four-vertex RAW9 backend now has a **second opt-in** timing mode, `UseNominalDosTickPacing` (OFF by default and only available with `UseSelectedRaw9Vertices`). `RothDosTickClock.cs` approximates the verified IRQ0 PIT divisor `0x4216` (~70.53 Hz), accumulating whole ticks and limiting movement allowance to 45 ticks per Unity frame. The byte speed is multiplied by this integer tick delta rather than by seconds; the legacy mover remains unchanged when the checkbox is OFF. Python model tests and source checks passed, but **Unity compilation, Play Mode, real-map behavior and full DOS command-state fidelity remain unverified**. See `Documentation/MILESTONE_0_10_21.md`.
+
+
+## 0.10.22 — Optional original DOS signed coordinate bounds
+Added the **UseDosSingleShotAbsoluteBounds** inspector toggle to `RothHorizontalSectorMover`, OFF by default and requiring both optional four-vertex mode and PIT tick pacing. For single-shot commands with zero timeout and no auto-repeat, it plans absolute DOS endpoints from the original four selected vertices, then advances via the signed-16 original RAW9 step calculation. It rejects unmodeled retriggers and opposite-direction targets; the old experimental modes are unchanged. The original retail GOG x86 opcode-9 branches were rechecked against the user-owned executable. **16 Python model tests passed; 20 committed-source contract checks passed. Unity compilation, Play Mode, collision geometry and retail command lifecycle are not validated.** See `Documentation/MILESTONE_0_10_22.md`.

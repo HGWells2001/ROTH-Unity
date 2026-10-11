@@ -286,6 +286,26 @@ namespace ROTHUnity.Runtime
                     default(RothDosRaw9Reference.AxisStep);
                 if (m.DosOneWayBounds)
                 {
+                    if (m.DosState != null)
+                    {
+                        // A waiting update consumes the signed DOS word timer
+                        // but does NOT move vertices until the next update.
+                        if (m.DosState.ConsumeWait(DosTickClock.PacingTicksThisFrame))
+                        {
+                            Trace(m, m.DosState.Waiting ? "wait" : "wait-finished", before, before);
+                            continue;
+                        }
+                        m.DosReverse = m.DosState.Reverse;
+                        m.DosBoundWord = m.DosReverse ? m.RawEnd : m.RawStart;
+                        // Retain Unity's conservative player-obstruction gate
+                        // on an automatic return. It is not DOS-proven.
+                        if (AvoidPlayerObstruction && (m.DosState.AnimationFlags & 0x20) != 0 &&
+                            Player != null && Builder.RuntimePlayerOccupiesSector(m.SectorId, Player))
+                        {
+                            Trace(m, "return-obstructed", before, before);
+                            continue;
+                        }
+                    }
                     short minimum, maximum;
                     if (!Builder.RuntimeTryReadRaw9SelectedRange(m.SectorId, m.AlongX,
                         out minimum, out maximum))
@@ -363,13 +383,23 @@ namespace ROTHUnity.Runtime
                 m.Position = next;
                 if (m.DosOneWayBounds)
                 {
-                    // Single-shot state only: the original DOS callback says
-                    // when the first coordinate reaches its absolute target.
-                    // Return/retrigger scheduler branches are not emulated.
+                    // Reproduce only the verified completion truth-table
+                    // branches. The DOS mode retains the current command's
+                    // mutable flags and timer across automatic reversals.
                     if (originalStep.Reached)
                     {
-                        Trace(m, "arrived", after, after);
-                        _motions.RemoveAt(i);
+                        if (m.DosState != null && m.DosState.Complete(
+                            m.Repeat, m.RawRevertTicks))
+                        {
+                            m.DosReverse = m.DosState.Reverse;
+                            m.DosBoundWord = m.DosReverse ? m.RawEnd : m.RawStart;
+                            Trace(m, m.DosState.Waiting ? "wait-armed" : "reverse", after, after);
+                        }
+                        else
+                        {
+                            Trace(m, "arrived", after, after);
+                            _motions.RemoveAt(i);
+                        }
                     }
                     continue;
                 }

@@ -95,6 +95,17 @@ namespace ROTHUnity.Runtime
                 Debug.LogWarning("RAW9 DOS absolute bounds require selected vertices, PIT ticks, no auto-repeat and zero timeout.", this);
                 return false;
             }
+            if (dosBounds)
+            {
+                // The DOS active-command retrigger gate is not implemented in
+                // the one-way probe; never replace an in-flight motion.
+                for (int i = 0; i < _motions.Count; i++)
+                    if (_motions[i].SectorId == sectorId)
+                    {
+                        Debug.LogWarning("RAW9 DOS bounds rejected a retrigger while a sector motion is active.", this);
+                        return false;
+                    }
+            }
             bool dosReverse = !DosInitialCommandStateBit02;
             int plannedDosOffset = 0;
             if (dosBounds)

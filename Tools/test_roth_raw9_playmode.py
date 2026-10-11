@@ -85,6 +85,14 @@ class PlayModeAuditTests(unittest.TestCase):
         x=inspect("ROTH_PIT_TRACE|1|1|0|1|1|1.5")
         self.assertEqual(len(x["parse_errors"]), 1)
 
+    def test_reject_nonfinite_unity_time(self):
+        x=inspect("ROTH_PIT_TRACE|1|nan|1|1|1|0.5")
+        self.assertEqual(len(x["parse_errors"]), 1)
+
+    def test_reject_negative_unity_time(self):
+        x=inspect("ROTH_PIT_TRACE|1|-1|1|1|1|0.5")
+        self.assertEqual(len(x["parse_errors"]), 1)
+
     def test_nonmoving_axis_guard(self):
         line=move().split("|")
         line[7]="8"

@@ -30,8 +30,13 @@ class DosState:
     def consume_wait(self, ticks):
         if not self.waiting: return False
         if ticks < 0: return True
-        self.timer = (self.timer - (ticks & 65535)) & 65535
-        if self.timer >= 32768 or self.timer == 0:
+        elapsed_word = ticks & 65535
+        signed = lambda v: v if v < 32768 else v - 65536
+        # x86 SUB sets OF; signed JG tests original operands, not
+        # merely the sign of the wrapped 16-bit subtraction result.
+        keep_waiting = signed(self.timer) > signed(elapsed_word)
+        self.timer = (self.timer - elapsed_word) & 65535
+        if not keep_waiting:
             self.flags &= 0xBF
         return True
 
@@ -148,6 +153,40 @@ class DosStateModelTests(unittest.TestCase):
         s = DosState(2); s.complete(True, 4)
         self.assertTrue(s.consume_wait(0))
         self.assertTrue(s.waiting)
+
+    def test_signed_overflow_negative_wait_no_false_keep(self):
+        s = DosState(2); s.complete(False, 0x8000)
+        self.assertTrue(s.consume_wait(1))
+        self.assertEqual(s.timer, 0x7fff)
+        self.assertFalse(s.waiting)  # -32768 > +1 is false even though wrapped result is +32767
+
+    def test_signed_overflow_positive_wait_kept(self):
+        s = DosState(2); s.complete(False, 0x7fff)
+        self.assertTrue(s.consume_wait(0xffff))
+        self.assertEqual(s.timer, 0x8000)
+        self.assertTrue(s.waiting)  # 32767 > -1 is true even though wrapped result is -32768
+
+    def test_signed_jg_reference_matrix(self):
+        def signed(v): return v if v < 32768 else v - 65536
+        for remaining in (0, 1, 45, 32767, 32768, 32769, 65534, 65535):
+            for elapsed in (0, 1, 45, 32767, 32768, 65535):
+                with self.subTest(remaining=remaining, elapsed=elapsed):
+                    s = DosState(2); s.complete(False, remaining if remaining else 1)
+                    s.timer = remaining
+                    s.flags |= 0x40
+                    s.consume_wait(elapsed)
+                    self.assertEqual(s.waiting, signed(remaining) > signed(elapsed))
+                    self.assertEqual(s.timer, (remaining - elapsed) & 0xffff)
+
+    def test_signed_timer_countdown_restores_wait_only_after_arm(self):
+        s=DosState(2)
+        self.assertFalse(s.consume_wait(10))
+        s.complete(False, 5)
+        self.assertTrue(s.consume_wait(2))
+        self.assertTrue(s.waiting)
+        self.assertTrue(s.consume_wait(3))
+        self.assertFalse(s.waiting)
+        self.assertEqual(s.timer, 0)
 
     def test_unrelated_command_modifiers_separate(self):
         commands = {3: DosState(0), 9: DosState(2)}

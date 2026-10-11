@@ -27,6 +27,7 @@ namespace ROTHUnity.Runtime
             public ushort SectorId;
             public bool AlongX;
             public bool SelectedGeometry;
+            public int MapGeneration;
             public float Position;
             public float Destination;
             public float ReturnPosition;
@@ -90,6 +91,7 @@ namespace ROTHUnity.Runtime
             Motion motion = new Motion {
                 SectorId = sectorId, AlongX = alongX,
                 SelectedGeometry = selected,
+                MapGeneration = Builder.RuntimeMapGeneration,
                 Position = alongX ? existing.x : existing.y,
                 // End-start remains an unverified RAW displacement.
                 // Re-triggers now begin at the live in-flight sector position.
@@ -119,6 +121,11 @@ namespace ROTHUnity.Runtime
             for (int i = _motions.Count - 1; i >= 0; --i)
             {
                 Motion m = _motions[i];
+                if (m.MapGeneration != Builder.RuntimeMapGeneration)
+                {
+                    _motions.RemoveAt(i);
+                    continue;
+                }
                 Vector2Int before;
                 if (!Builder.RuntimeGetSectorTranslation(m.SectorId, out before))
                 {

@@ -29,6 +29,8 @@ namespace ROTHUnity.Runtime
         public bool UseDosSingleShotAbsoluteBounds;
         [Tooltip("Value of dynamic command[2] bit 0x02 at the FIRST DOS trigger. The original initializes motion in reverse when clear. Not recovered from the current Unity command interpreter.")]
         public bool DosInitialCommandStateBit02;
+        [Tooltip("EXPERIMENTAL original RAW9 animation-state transitions: dynamic command bit 0x02, active retrigger, signed tick timeout and delayed reversal. Requires the three DOS experiment switches above. OFF by default.")]
+        public bool UseDosCommandStateTransitions;
 
         private sealed class Motion
         {
@@ -37,6 +39,8 @@ namespace ROTHUnity.Runtime
             public bool SelectedGeometry;
             public bool DosTickPacing;
             public bool DosOneWayBounds;
+            public RothDosRaw9CommandState DosState;
+            public int RawCommandIndex;
             public bool DosReverse;
             public short DosBoundWord;
             public int MapGeneration;
@@ -55,8 +59,18 @@ namespace ROTHUnity.Runtime
             public ushort RawRevertTicks;
         }
         private readonly List<Motion> _motions = new List<Motion>();
+        // Per-command dynamic modifier; sector ID alone cannot identify the
+        // triggering RAW command when a room contains multiple command chains.
+        private readonly Dictionary<int, RothDosRaw9CommandState> _dosCommandStates =
+            new Dictionary<int, RothDosRaw9CommandState>();
+        private int _dosCommandStateGeneration = -1;
 
-        public void CancelAll() { _motions.Clear(); }
+        public void CancelAll()
+        {
+            _motions.Clear();
+            _dosCommandStates.Clear();
+            _dosCommandStateGeneration = -1;
+        }
 
         // Pipe-separated, invariant-culture records: frame, time (scaled seconds),
         // sector, axis, event, previous/next RAW X/Y, command start/end,
@@ -76,7 +90,8 @@ namespace ROTHUnity.Runtime
         }
 
         public bool Move(ushort sectorId, bool alongX, short start, short end,
-            ushort revertTicks, bool repeat, ushort flags = 0)
+            ushort revertTicks, bool repeat, ushort flags = 0,
+            int rawCommandIndex = 0, byte rawCommandModifier = 0)
         {
             if (Builder == null) Builder = GetComponent<RothMapMeshBuilder>();
             if (Builder == null) return false;
@@ -90,23 +105,70 @@ namespace ROTHUnity.Runtime
             }
             bool tickPacing = selected && UseNominalDosTickPacing;
             bool dosBounds = UseDosSingleShotAbsoluteBounds;
-            if (dosBounds && (!tickPacing || repeat || revertTicks != 0))
+            bool dosStates = UseDosCommandStateTransitions;
+            if (dosStates && (!dosBounds || !tickPacing))
             {
-                Debug.LogWarning("RAW9 DOS absolute bounds require selected vertices, PIT ticks, no auto-repeat and zero timeout.", this);
+                Debug.LogWarning("RAW9 DOS command states require both selected geometry, PIT pacing and absolute bounds.", this);
                 return false;
             }
+            if (dosBounds && (!tickPacing || (!dosStates && (repeat || revertTicks != 0))))
+            {
+                Debug.LogWarning("RAW9 DOS bounds require PIT timing; timeout and repeat require the opt-in DOS state machine.", this);
+                return false;
+            }
+
+            // Map rebuilds invalidate all command indices and their dynamic
+            // modifier bytes. Never apply command state to a different map.
+            if (_dosCommandStateGeneration != Builder.RuntimeMapGeneration)
+            {
+                _dosCommandStates.Clear();
+                _dosCommandStateGeneration = Builder.RuntimeMapGeneration;
+            }
+
+            RothDosRaw9CommandState dosState = null;
             if (dosBounds)
             {
-                // The DOS active-command retrigger gate is not implemented in
-                // the one-way probe; never replace an in-flight motion.
                 for (int i = 0; i < _motions.Count; i++)
-                    if (_motions[i].SectorId == sectorId)
+                {
+                    Motion active = _motions[i];
+                    if (active.SectorId != sectorId) continue;
+                    if (dosStates && active.DosState != null &&
+                        rawCommandIndex > 0 && active.RawCommandIndex == rawCommandIndex)
                     {
-                        Debug.LogWarning("RAW9 DOS bounds rejected a retrigger while a sector motion is active.", this);
-                        return false;
+                        // DOS obj1+0x22BB1: only a running repeatable command
+                        // without a timeout permits direction reversal here.
+                        if (active.DosState.TryActiveRetrigger(repeat, revertTicks))
+                        {
+                            active.DosReverse = active.DosState.Reverse;
+                            active.DosBoundWord = active.DosReverse ? active.RawEnd : active.RawStart;
+                            Vector2Int live;
+                            if (Builder.RuntimeGetSectorTranslation(sectorId, out live))
+                                Trace(active, "retrigger", live, live);
+                            return true;
+                        }
                     }
+                    Debug.LogWarning("RAW9 DOS bounds refused unsupported active command or another motion in this sector.", this);
+                    return false;
+                }
             }
-            bool dosReverse = !DosInitialCommandStateBit02;
+            if (dosStates)
+            {
+                RothDosRaw9CommandState saved;
+                byte modifier = rawCommandIndex > 0 &&
+                    _dosCommandStates.TryGetValue(rawCommandIndex, out saved)
+                    ? saved.CommandState
+                    : rawCommandIndex > 0 ? rawCommandModifier :
+                      (byte)(DosInitialCommandStateBit02 ? 0x02 : 0);
+                // A DOS command disabled by completion must not be silently
+                // re-enabled by a new Unity chain trigger.
+                if ((modifier & 0x08) != 0)
+                {
+                    Debug.LogWarning("RAW9 DOS command state rejects completed/disabled command.", this);
+                    return false;
+                }
+                dosState = new RothDosRaw9CommandState(modifier);
+            }
+            bool dosReverse = dosStates ? dosState.Reverse : !DosInitialCommandStateBit02;
             int plannedDosOffset = 0;
             if (dosBounds)
             {
@@ -158,6 +220,8 @@ namespace ROTHUnity.Runtime
                 SelectedGeometry = selected,
                 DosTickPacing = tickPacing,
                 DosOneWayBounds = dosBounds,
+                DosState = dosState,
+                RawCommandIndex = rawCommandIndex,
                 DosReverse = dosReverse,
                 DosBoundWord = dosReverse ? end : start,
                 MapGeneration = Builder.RuntimeMapGeneration,
@@ -181,6 +245,8 @@ namespace ROTHUnity.Runtime
                 RawFlags = flags, RawRevertTicks = revertTicks
             };
             _motions.Add(motion);
+            if (dosStates && rawCommandIndex > 0)
+                _dosCommandStates[rawCommandIndex] = dosState;
             Trace(motion, "trigger", existing, existing);
             return true;
         }

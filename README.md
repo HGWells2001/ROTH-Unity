@@ -1,6 +1,6 @@
 # ROTH Unity
 
-**Current development milestone: 0.10.23 (opt-in RAW9 dynamic command state)**
+**Current development milestone: 0.10.24 (DOS signed-wait correction and Play Mode trace audit)**
 
 An open-source Unity reimplementation of **Realms of the Haunting** that reads a legally obtained copy of the original game data. Original game assets are not distributed with this project.
 
@@ -144,3 +144,7 @@ Added the **UseDosSingleShotAbsoluteBounds** inspector toggle to `RothHorizontal
 
 ## 0.10.23 — Optional original DOS RAW9 dynamic command state
 A new **UseDosCommandStateTransitions** inspector option (OFF by default, requiring the three earlier opt-in DOS/geometry switches) preserves the original command modifier bit 0x02 and per-command state across triggers. The mover now models the x86-completion branches for a signed 16-bit wait timer, automatic direction reversal, and valid active repeat/zero-timeout re-triggers. `RothCommandMonitor` supplies the original one-based RAW command index and initial modifier; `RothDosRaw9CommandState.cs` isolates the verified bit transitions. A new `RAW9_DOS_STATE` trace records command/animation bytes, countdown and activation status. **61 local Python tests passed and original GOG binary signatures were reverified**, but **Unity Play Mode, C# compilation, real-map collision fidelity and full DOS scheduler integration are not yet verified**. See `Documentation/MILESTONE_0_10_23.md`.
+
+
+## 0.10.24 — Signed DOS wait correction and movement/timer trace audit
+Fixed the original opcode-9 signed 16-bit countdown to preserve x86 JG semantics on overflow; added defensive bounds/ownership checks before reversing an active sector. New read-only `Tools/audit_roth_raw9_playmode.py` joins `RAW9_TRACE`, `ROTH_PIT_TRACE` and `RAW9_DOS_STATE` from a Unity Play Mode log, reporting step direction, tick-speed violations, waiting-state movement and missing timer data. Locally tested **44 Python cases** (25 state, 19 log integration) and reverified the original user-owned GOG executable audit; **Unity C# compilation, Play Mode and DOSBox comparison were not performed**. The DOS movement remains opt-in and OFF by default. See `Documentation/MILESTONE_0_10_24.md`.

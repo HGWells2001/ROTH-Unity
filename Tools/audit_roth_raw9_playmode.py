@@ -8,6 +8,7 @@ Usage: python Tools/audit_roth_raw9_playmode.py Player.log --json raw9_audit.jso
 """
 import argparse
 import json
+import math
 from pathlib import Path
 import sys
 
@@ -42,6 +43,9 @@ def parse_pit(line, number):
     if (row["frame"] < 0 or row["counter16"] not in range(65536)
             or not 0 <= row["pacing_ticks"] <= 45 or row["elapsed_ticks"] < 0
             or row["pacing_ticks"] > row["elapsed_ticks"]
+            or not math.isfinite(row["unity_time"])
+            or row["unity_time"] < 0
+            or not math.isfinite(row["fraction"])
             or not 0 <= row["fraction"] < 1):
         raise ValueError(f"line {number}: impossible PIT counter, tick or fraction value")
     return row

@@ -25,6 +25,10 @@ namespace ROTHUnity.Runtime
         public bool UseNominalDosTickPacing;
         [Tooltip("Shared per-frame DOS tick source. An instance is created on this GameObject when the optional pacing mode is first triggered.")]
         public RothDosTickClock DosTickClock;
+        [Tooltip("EXPERIMENTAL: one-way original DOS coordinate endpoints. Requires both selected geometry and PIT tick pacing. Does not support timeout or auto-repeat. OFF by default.")]
+        public bool UseDosSingleShotAbsoluteBounds;
+        [Tooltip("Value of dynamic command[2] bit 0x02 at the FIRST DOS trigger. The original initializes motion in reverse when clear. Not recovered from the current Unity command interpreter.")]
+        public bool DosInitialCommandStateBit02;
 
         private sealed class Motion
         {
@@ -32,6 +36,9 @@ namespace ROTHUnity.Runtime
             public bool AlongX;
             public bool SelectedGeometry;
             public bool DosTickPacing;
+            public bool DosOneWayBounds;
+            public bool DosReverse;
+            public short DosBoundWord;
             public int MapGeneration;
             public float Position;
             public float Destination;
@@ -82,6 +89,32 @@ namespace ROTHUnity.Runtime
                 return false;
             }
             bool tickPacing = selected && UseNominalDosTickPacing;
+            bool dosBounds = UseDosSingleShotAbsoluteBounds;
+            if (dosBounds && (!tickPacing || repeat || revertTicks != 0))
+            {
+                Debug.LogWarning("RAW9 DOS absolute bounds require selected vertices, PIT ticks, no auto-repeat and zero timeout.", this);
+                return false;
+            }
+            bool dosReverse = !DosInitialCommandStateBit02;
+            int plannedDosOffset = 0;
+            if (dosBounds)
+            {
+                short minimum, maximum;
+                if (!Builder.RuntimeTryReadRaw9SelectedRange(sectorId, alongX, out minimum, out maximum))
+                {
+                    Debug.LogWarning("RAW9 DOS bounds rejected: original vertex coordinate range unavailable.", this);
+                    return false;
+                }
+                short rawTarget;
+                string reason;
+                if (!RothDosRaw9Bounds.TryPlan(minimum, maximum, start, end,
+                    dosReverse, alongX ? existing.x : existing.y,
+                    out plannedDosOffset, out rawTarget, out reason))
+                {
+                    Debug.LogWarning("RAW9 DOS bounds rejected sector " + sectorId + ": " + reason, this);
+                    return false;
+                }
+            }
             if (tickPacing && DosTickClock == null)
             {
                 DosTickClock = GetComponent<RothDosTickClock>();
@@ -108,12 +141,17 @@ namespace ROTHUnity.Runtime
                 SectorId = sectorId, AlongX = alongX,
                 SelectedGeometry = selected,
                 DosTickPacing = tickPacing,
+                DosOneWayBounds = dosBounds,
+                DosReverse = dosReverse,
+                DosBoundWord = dosReverse ? end : start,
                 MapGeneration = Builder.RuntimeMapGeneration,
                 Position = alongX ? existing.x : existing.y,
                 // End-start remains an unverified RAW displacement.
                 // Re-triggers now begin at the live in-flight sector position.
-                Destination = (alongX ? existing.x : existing.y) + (float)end - start,
-                OutwardDestination = (alongX ? existing.x : existing.y) + (float)end - start,
+                Destination = dosBounds ? plannedDosOffset :
+                    (alongX ? existing.x : existing.y) + (float)end - start,
+                OutwardDestination = dosBounds ? plannedDosOffset :
+                    (alongX ? existing.x : existing.y) + (float)end - start,
                 ReturnPosition = alongX ? existing.x : existing.y,
                 // In the opt-in clock mode, the original unsigned command[7]
                 // byte is multiplied by whole PIT ticks. The old continuous
@@ -161,10 +199,32 @@ namespace ROTHUnity.Runtime
                     _motions.RemoveAt(i);
                     continue;
                 }
-                float frameStep = m.DosTickPacing
-                    ? m.Speed * DosTickClock.PacingTicksThisFrame
-                    : m.Speed * Time.deltaTime;
-                float next = Mathf.MoveTowards(m.Position, m.Destination, frameStep);
+                float next;
+                RothDosRaw9Reference.AxisStep originalStep =
+                    default(RothDosRaw9Reference.AxisStep);
+                if (m.DosOneWayBounds)
+                {
+                    short minimum, maximum;
+                    if (!Builder.RuntimeTryReadRaw9SelectedRange(m.SectorId, m.AlongX,
+                        out minimum, out maximum))
+                    {
+                        Debug.LogWarning("RAW9 DOS bounds motion canceled: selected coordinates changed externally.", this);
+                        _motions.RemoveAt(i);
+                        continue;
+                    }
+                    short current = m.DosReverse ? minimum : maximum;
+                    originalStep = RothDosRaw9Reference.ComputeAxisStep(
+                        current, m.DosBoundWord, DosTickClock.PacingTicksThisFrame,
+                        (byte)((m.RawFlags >> 8) & 255), m.DosReverse);
+                    next = m.Position + originalStep.Delta;
+                }
+                else
+                {
+                    float frameStep = m.DosTickPacing
+                        ? m.Speed * DosTickClock.PacingTicksThisFrame
+                        : m.Speed * Time.deltaTime;
+                    next = Mathf.MoveTowards(m.Position, m.Destination, frameStep);
+                }
                 Vector2Int after = before;
                 if (m.AlongX) after.x = Mathf.RoundToInt(next);
                 else after.y = Mathf.RoundToInt(next);
@@ -219,6 +279,18 @@ namespace ROTHUnity.Runtime
                     Trace(m, "step", before, after);
                 }
                 m.Position = next;
+                if (m.DosOneWayBounds)
+                {
+                    // Single-shot state only: the original DOS callback says
+                    // when the first coordinate reaches its absolute target.
+                    // Return/retrigger scheduler branches are not emulated.
+                    if (originalStep.Reached)
+                    {
+                        Trace(m, "arrived", after, after);
+                        _motions.RemoveAt(i);
+                    }
+                    continue;
+                }
                 if (!Mathf.Approximately(next, m.Destination)) continue;
                 if (m.Returning)
                 {

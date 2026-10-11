@@ -34,6 +34,50 @@ namespace ROTHUnity.Runtime
             return _raw9SelectedSectorMotions.ContainsKey(sectorId);
         }
 
+        /// <summary>
+        /// Read the min/max original coordinate of the four DOS-selected RAW9
+        /// vertices, without preparing or mutating a moving sector. For an
+        /// already prepared selection, validate its cached coordinates before
+        /// exposing the live bounds. Used only for opt-in one-way DOS motion.
+        /// </summary>
+        public bool RuntimeTryReadRaw9SelectedRange(ushort sectorId, bool alongX,
+            out short minimum, out short maximum)
+        {
+            minimum = 0;
+            maximum = 0;
+            if (_map == null) return false;
+            Raw9SelectedMotion state;
+            if (_raw9SelectedSectorMotions.TryGetValue(sectorId, out state))
+            {
+                if (state.AlongX != alongX) return false;
+                int low = int.MaxValue;
+                int high = int.MinValue;
+                for (int i = 0; i < 4; i++)
+                {
+                    int index = state.Indices[i];
+                    if (index < 0 || index >= _map.Vertices.Count) return false;
+                    RothVertex v = _map.Vertices[index];
+                    RothVertex original = state.InitialVertices[i];
+                    if ((long)original.X + state.Offset.x != v.X ||
+                        (long)original.Y + state.Offset.y != v.Y) return false;
+                    int coordinate = alongX ? v.X : v.Y;
+                    if (coordinate < low) low = coordinate;
+                    if (coordinate > high) high = coordinate;
+                }
+                minimum = (short)low;
+                maximum = (short)high;
+                return true;
+            }
+
+            RothRaw9VertexInspector.Selection selection;
+            string reason;
+            if (!RothRaw9VertexInspector.TrySelect(_map, sectorId, alongX,
+                out selection, out reason)) return false;
+            minimum = selection.Minimum;
+            maximum = selection.Maximum;
+            return true;
+        }
+
         /// <summary>Checks a movable quad before the first mutation; refuses hazards.</summary>
         public bool RuntimeTryPrepareSelectedRaw9Motion(ushort sectorId, bool alongX, out string reason)
         {

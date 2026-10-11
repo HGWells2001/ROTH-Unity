@@ -247,6 +247,7 @@ namespace ROTHUnity.Runtime
             _movingSectorOffsets.Clear();
             _movingSectorTextureFlags.Clear();
             _raw9SelectedSectorMotions.Clear();
+            unchecked { _raw9MapGeneration++; }
         }
 
         public bool RuntimeGetSectorTranslation(ushort id, out Vector2Int offset)

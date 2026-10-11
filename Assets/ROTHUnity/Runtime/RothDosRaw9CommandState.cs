@@ -45,8 +45,14 @@ namespace ROTHUnity.Runtime
         {
             if (!Waiting) return false;
             if (elapsedTicks < 0) return true; // no speculative reverse time
-            WaitTicks = unchecked((ushort)(WaitTicks - (ushort)elapsedTicks));
-            if ((short)WaitTicks <= 0) AnimationFlags &= 0xBF;
+            // x86 SUB word followed by signed JG: the branch is equivalent
+            // to comparing the ORIGINAL signed operands, not testing the
+            // signed wrapped result. Testing the result loses the overflow
+            // flag (OF) and gets waits around 0x8000 wrong.
+            ushort elapsedWord = unchecked((ushort)elapsedTicks);
+            bool keepWaiting = (short)WaitTicks > unchecked((short)elapsedWord);
+            WaitTicks = unchecked((ushort)(WaitTicks - elapsedWord));
+            if (!keepWaiting) AnimationFlags &= 0xBF;
             return true;
         }
 

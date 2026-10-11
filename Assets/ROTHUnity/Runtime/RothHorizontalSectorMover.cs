@@ -153,11 +153,11 @@ namespace ROTHUnity.Runtime
                     _motions.RemoveAt(i);
                     continue;
                 }
-                if (m.DosTickPacing && DosTickClock == null)
+                if (m.DosTickPacing && (DosTickClock == null || !DosTickClock.isActiveAndEnabled))
                 {
-                    // Do not silently switch an in-flight motion to a different
-                    // timebase after its clock component is destroyed.
-                    Debug.LogWarning("RAW9 tick-paced motion canceled: DOS clock is missing.", this);
+                    // Do not advance from a stale per-frame tick value or
+                    // silently switch timebase when the clock is unavailable.
+                    Debug.LogWarning("RAW9 tick-paced motion canceled: DOS clock is missing or disabled.", this);
                     _motions.RemoveAt(i);
                     continue;
                 }

@@ -24,6 +24,12 @@ namespace ROTHUnity.Runtime
         private readonly Dictionary<ushort, Raw9SelectedMotion> _raw9SelectedSectorMotions =
             new Dictionary<ushort, Raw9SelectedMotion>();
 
+        /// <summary>True once a sector is assigned to the selected-vertex backend.</summary>
+        public bool RuntimeIsSelectedRaw9MotionActive(ushort sectorId)
+        {
+            return _raw9SelectedSectorMotions.ContainsKey(sectorId);
+        }
+
         /// <summary>Checks a movable quad before the first mutation; refuses hazards.</summary>
         public bool RuntimeTryPrepareSelectedRaw9Motion(ushort sectorId, bool alongX, out string reason)
         {

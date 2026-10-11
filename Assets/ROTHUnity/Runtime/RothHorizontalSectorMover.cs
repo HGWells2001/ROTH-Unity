@@ -103,6 +103,27 @@ namespace ROTHUnity.Runtime
                 state.WaitTicks, state.Active ? 1 : 0), this);
         }
 
+        // Trace-only: the active goal changes whenever the DOS state toggles
+        // direction. The actual geometry update always uses the current
+        // original vertex extremum, NOT this interpolated float destination.
+        private void RefreshDosGoalForTrace(Motion motion)
+        {
+            if (Builder == null || motion.DosState == null) return;
+            short minimum, maximum;
+            Vector2Int offset;
+            if (!Builder.RuntimeGetSectorTranslation(motion.SectorId, out offset) ||
+                !Builder.RuntimeTryReadRaw9SelectedRange(motion.SectorId,
+                    motion.AlongX, out minimum, out maximum)) return;
+            int destination;
+            short target;
+            string reason;
+            if (RothDosRaw9Bounds.TryPlan(minimum, maximum,
+                motion.RawStart, motion.RawEnd, motion.DosReverse,
+                motion.AlongX ? offset.x : offset.y,
+                out destination, out target, out reason))
+                motion.Destination = destination;
+        }
+
         public bool Move(ushort sectorId, bool alongX, short start, short end,
             ushort revertTicks, bool repeat, ushort flags = 0,
             int rawCommandIndex = 0, byte rawCommandModifier = 0)
@@ -155,6 +176,7 @@ namespace ROTHUnity.Runtime
                         {
                             active.DosReverse = active.DosState.Reverse;
                             active.DosBoundWord = active.DosReverse ? active.RawEnd : active.RawStart;
+                            RefreshDosGoalForTrace(active);
                             Vector2Int live;
                             if (Builder.RuntimeGetSectorTranslation(sectorId, out live))
                                 Trace(active, "retrigger", live, live);
@@ -411,6 +433,7 @@ namespace ROTHUnity.Runtime
                         {
                             m.DosReverse = m.DosState.Reverse;
                             m.DosBoundWord = m.DosReverse ? m.RawEnd : m.RawStart;
+                            RefreshDosGoalForTrace(m);
                             Trace(m, m.DosState.Waiting ? "wait-armed" : "reverse", after, after);
                             TraceDosState(m, m.DosState.Waiting ? "wait-armed" : "reverse");
                         }

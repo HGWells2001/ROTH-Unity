@@ -24,6 +24,10 @@ namespace ROTHUnity.Runtime
         private readonly Dictionary<ushort, Raw9SelectedMotion> _raw9SelectedSectorMotions =
             new Dictionary<ushort, Raw9SelectedMotion>();
 
+        private int _raw9MapGeneration;
+        public int RuntimeMapGeneration { get { return _raw9MapGeneration; } }
+
+
         /// <summary>True once a sector is assigned to the selected-vertex backend.</summary>
         public bool RuntimeIsSelectedRaw9MotionActive(ushort sectorId)
         {
@@ -138,6 +142,10 @@ namespace ROTHUnity.Runtime
                 long x = (long)original.X + offset.x, y = (long)original.Y + offset.y;
                 if (x < short.MinValue || x > short.MaxValue ||
                     y < short.MinValue || y > short.MaxValue) return false;
+                RothVertex current = _map.Vertices[state.Indices[i]];
+                if ((long)original.X + state.Offset.x != current.X ||
+                    (long)original.Y + state.Offset.y != current.Y)
+                    return false; // Refuse to overwrite an externally mutated vertex.
             }
 
             foreach (RothObject obj in _map.Objects)

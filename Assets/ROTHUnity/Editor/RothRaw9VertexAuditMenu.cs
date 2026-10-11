@@ -17,7 +17,7 @@ namespace ROTHUnity.Editor
             {
                 RothRawMap map = RothRawMapReader.Read(path);
                 var report = new StringBuilder();
-                int checkedCount = 0, rejected = 0, extraFaces = 0;
+                int checkedCount = 0, rejected = 0, extraFaces = 0, topologyWarnings = 0;
                 foreach (RothCommand c in map.Commands)
                 {
                     if (c.BaseOpcode != 9 || c.Arguments == null || c.Arguments.Length < 6) continue;
@@ -33,6 +33,13 @@ namespace ROTHUnity.Editor
                         continue;
                     }
                     if (selected.FacesCount != 4) extraFaces++;
+                    RothRaw9TopologyInspector.Report topology = RothRaw9TopologyInspector.Inspect(map, selected);
+                    if (topology.HasStaticHazards)
+                    {
+                        topologyWarnings++;
+                        foreach (RothRaw9TopologyInspector.Finding finding in topology.Findings)
+                            report.AppendLine("  TOPOLOGY REVIEW: " + finding);
+                    }
                     report.Append("Sector ").Append(sectorId).Append(alongX ? " X: " : " Y: ");
                     for (int i = 0; i < 4; i++)
                         report.Append("v").Append(selected.Indices[i]).Append('(')
@@ -41,9 +48,9 @@ namespace ROTHUnity.Editor
                     report.AppendLine();
                 }
                 Debug.Log("RAW9 reference audit: " + path + " | " + checkedCount +
-                          " commands, " + rejected + " rejected, " + extraFaces + " have extra faces.\n" + report);
+                          " commands, " + rejected + " rejected, " + extraFaces + " have extra faces, " + topologyWarnings + " topology warnings.\n" + report);
                 EditorUtility.DisplayDialog("ROTH RAW9 vertex audit",
-                    checkedCount + " commands checked; " + rejected + " rejected; " + extraFaces + " non-quads.\nDetails in the Console.", "OK");
+                    checkedCount + " commands checked; " + rejected + " rejected; " + extraFaces + " non-quads; " + topologyWarnings + " topology warnings.\nStatic warnings are not proof of movement failure. Details in the Console.", "OK");
             }
             catch (System.Exception ex)
             {

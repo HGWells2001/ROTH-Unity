@@ -50,7 +50,7 @@ namespace ROTHUnity.Runtime
             // signed wrapped result. Testing the result loses the overflow
             // flag (OF) and gets waits around 0x8000 wrong.
             ushort elapsedWord = unchecked((ushort)elapsedTicks);
-            bool keepWaiting = (short)WaitTicks > unchecked((short)elapsedWord);
+            bool keepWaiting = unchecked((short)WaitTicks) > unchecked((short)elapsedWord);
             WaitTicks = unchecked((ushort)(WaitTicks - elapsedWord));
             if (!keepWaiting) AnimationFlags &= 0xBF;
             return true;

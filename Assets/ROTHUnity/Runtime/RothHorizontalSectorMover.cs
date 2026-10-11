@@ -170,6 +170,37 @@ namespace ROTHUnity.Runtime
                     if (dosStates && active.DosState != null &&
                         rawCommandIndex > 0 && active.RawCommandIndex == rawCommandIndex)
                     {
+                        // Re-triggering a command is not permission to edit
+                        // a differently configured or now-rebuilt sector.
+                        if (active.MapGeneration != Builder.RuntimeMapGeneration ||
+                            !active.SelectedGeometry || !active.DosTickPacing ||
+                            !active.DosOneWayBounds || active.AlongX != alongX ||
+                            active.RawStart != start || active.RawEnd != end ||
+                            active.RawFlags != flags || active.RawRevertTicks != revertTicks ||
+                            active.Repeat != repeat)
+                        {
+                            Debug.LogWarning("RAW9 DOS retrigger rejected: active motion parameters changed.", this);
+                            return false;
+                        }
+                        // A direction flip is rejected before toggling any
+                        // state if the opposite signed-short DOS bound is
+                        // unreachable or vertex references are inconsistent.
+                        short minimum, maximum;
+                        Vector2Int liveOffset;
+                        short flipTarget;
+                        int flipDestination;
+                        string flipReason;
+                        if (!Builder.RuntimeTryReadRaw9SelectedRange(sectorId, alongX,
+                                out minimum, out maximum) ||
+                            !Builder.RuntimeGetSectorTranslation(sectorId, out liveOffset) ||
+                            !RothDosRaw9Bounds.TryPlan(minimum, maximum, start, end,
+                                !active.DosState.Reverse,
+                                alongX ? liveOffset.x : liveOffset.y,
+                                out flipDestination, out flipTarget, out flipReason))
+                        {
+                            Debug.LogWarning("RAW9 DOS retrigger rejected: opposite bound unavailable.", this);
+                            return false;
+                        }
                         // DOS obj1+0x22BB1: only a running repeatable command
                         // without a timeout permits direction reversal here.
                         if (active.DosState.TryActiveRetrigger(repeat, revertTicks))

@@ -66,6 +66,7 @@ class BinaryEvidenceTests(unittest.TestCase):
         self.assertEqual(r['evidence_sites'],len(m.SITES))
         self.assertEqual(r['verified_absolute_relocations'],len(m.RELOCATIONS))
         self.assertEqual(r['irq_reprogram_divisor'],16918)
+        self.assertEqual(r['irq_default_restore_divisor'],65535)
     def test_site_mutation_rejected(self):
         code,reloc=self.fixture();code[0x2438]=0xff
         with self.assertRaisesRegex(m.EvidenceMismatch,'instruction mismatch'):

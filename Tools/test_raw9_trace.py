@@ -58,7 +58,7 @@ class TraceTests(unittest.TestCase):
                  record("reverse", before=10, after=10),
                  record("step", before=10, after=4),
                  record("arrived", before=4, after=4)]
-        summary = mod.analyze("\\n".join(lines))
+        summary = mod.analyze("\n".join(lines))
         self.assertEqual(summary["malformed_rows"], [])
         self.assertEqual(summary["sectors"]["12"]["total_committed_raw_distance"], 6)
 

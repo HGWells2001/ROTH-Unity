@@ -1,0 +1,33 @@
+{
+  "evidence_sites": 20,
+  "exe_sha256": "e2d54427cd0692798e2df457b1ea8d3bca8cf1383ec2d4ea782165fe0ba56a05",
+  "initial_divisor": 16962,
+  "interrupt_entry_object1_offset": "0x2431",
+  "interrupt_vector": 8,
+  "irq_default_restore_divisor": 65536,
+  "irq_reprogram_divisor": 16918,
+  "nominal_initial_irq_hz": 70.34441693196557,
+  "nominal_pit_input_hz": 1193182,
+  "nominal_steady_irq_hz": 70.52736730109942,
+  "nominal_steady_tick_seconds": 0.014178893077502008,
+  "pit_io_ports": {
+    "channel0": 64,
+    "command": 67
+  },
+  "pit_mode": "3 (mode 7 alias), channel 0, lo/hi, binary",
+  "pit_mode_control_hex": "0x3e",
+  "raw9_forward_bound": "signed16(-2 * signed16(command[0xA:0xC]))",
+  "raw9_reverse_bound": "signed16(-2 * signed16(command[0xC:0xE]))",
+  "raw9_step": "signed16(frame_delta * unsigned8(command[7])) with optional negation, then signed16 clamp",
+  "remaining_unknowns": [
+    "Real timing may differ from nominal PIT arithmetic because IRQ handler reprograms the counter.",
+    "The code uses signed-extension of the 16-bit timer word before subtraction; rollover behavior still requires tracing.",
+    "Sector-local selected vertex references have not yet been mapped to Unity mesh indices.",
+    "This analysis does not yet justify switching on DOS simulation in the Unity component."
+  ],
+  "tick_increment_object1_offset": "0x23de",
+  "timer_counter": "object3+0x20fac",
+  "timer_delta": "object3+0x1570c",
+  "timer_width_bits": 16,
+  "verified_absolute_relocations": 5
+}

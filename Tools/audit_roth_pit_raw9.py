@@ -123,7 +123,7 @@ def audit(data):
         'nominal_initial_irq_hz':PIT_INPUT_HZ/initial,
         'nominal_steady_irq_hz':PIT_INPUT_HZ/steady,
         'nominal_steady_tick_seconds':steady/PIT_INPUT_HZ,
-        'irq_default_restore_divisor':65536,
+        'irq_default_restore_divisor':65535,
         'raw9_forward_bound':'signed16(-2 * signed16(command[0xA:0xC]))',
         'raw9_reverse_bound':'signed16(-2 * signed16(command[0xC:0xE]))',
         'raw9_step':'signed16(frame_delta * unsigned8(command[7])) with optional negation, then signed16 clamp',

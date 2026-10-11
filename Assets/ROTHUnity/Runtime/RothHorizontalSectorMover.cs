@@ -21,12 +21,17 @@ namespace ROTHUnity.Runtime
         public bool TraceRaw9;
         [Tooltip("EXPERIMENTAL: only four DOS-selected vertex coordinate words are moved. Off by default. Refuses unsafe shared geometry and mixed-mode sectors.")]
         public bool UseSelectedRaw9Vertices;
+        [Tooltip("EXPERIMENTAL: use nominal DOS IRQ0 integer ticks x command speed byte, instead of Time.deltaTime. Requires selected RAW9 geometry. OFF by default; motion bounds and return states remain experimental.")]
+        public bool UseNominalDosTickPacing;
+        [Tooltip("Shared per-frame DOS tick source. An instance is created on this GameObject when the optional pacing mode is first triggered.")]
+        public RothDosTickClock DosTickClock;
 
         private sealed class Motion
         {
             public ushort SectorId;
             public bool AlongX;
             public bool SelectedGeometry;
+            public bool DosTickPacing;
             public int MapGeneration;
             public float Position;
             public float Destination;
@@ -71,6 +76,17 @@ namespace ROTHUnity.Runtime
             Vector2Int existing;
             if (!Builder.RuntimeGetSectorTranslation(sectorId, out existing)) return false;
             bool selected = UseSelectedRaw9Vertices;
+            if (UseNominalDosTickPacing && !selected)
+            {
+                Debug.LogWarning("RAW9 nominal DOS tick pacing requires selected four-vertex geometry.", this);
+                return false;
+            }
+            bool tickPacing = selected && UseNominalDosTickPacing;
+            if (tickPacing && DosTickClock == null)
+            {
+                DosTickClock = GetComponent<RothDosTickClock>();
+                if (DosTickClock == null) DosTickClock = gameObject.AddComponent<RothDosTickClock>();
+            }
             if (selected)
             {
                 string reason;
@@ -91,6 +107,7 @@ namespace ROTHUnity.Runtime
             Motion motion = new Motion {
                 SectorId = sectorId, AlongX = alongX,
                 SelectedGeometry = selected,
+                DosTickPacing = tickPacing,
                 MapGeneration = Builder.RuntimeMapGeneration,
                 Position = alongX ? existing.x : existing.y,
                 // End-start remains an unverified RAW displacement.
@@ -98,8 +115,12 @@ namespace ROTHUnity.Runtime
                 Destination = (alongX ? existing.x : existing.y) + (float)end - start,
                 OutwardDestination = (alongX ? existing.x : existing.y) + (float)end - start,
                 ReturnPosition = alongX ? existing.x : existing.y,
-                Speed = Mathf.Max(1f, ((flags >> 8) & 255) == 0 ? RawUnitsPerSecond :
-                    ((flags >> 8) & 255) * Mathf.Max(1f, RawSpeedPerFlagUnit)),
+                // In the opt-in clock mode, the original unsigned command[7]
+                // byte is multiplied by whole PIT ticks. The old continuous
+                // prototype speed remains unchanged when this option is off.
+                Speed = tickPacing ? (float)((flags >> 8) & 255) :
+                    Mathf.Max(1f, ((flags >> 8) & 255) == 0 ? RawUnitsPerSecond :
+                        ((flags >> 8) & 255) * Mathf.Max(1f, RawSpeedPerFlagUnit)),
                 ReturnDelay = revertTicks * Mathf.Max(0f, AutoRevertTickSeconds),
                 Repeat = repeat,
                 RawStart = start, RawEnd = end,
@@ -132,7 +153,18 @@ namespace ROTHUnity.Runtime
                     _motions.RemoveAt(i);
                     continue;
                 }
-                float next = Mathf.MoveTowards(m.Position, m.Destination, m.Speed * Time.deltaTime);
+                if (m.DosTickPacing && DosTickClock == null)
+                {
+                    // Do not silently switch an in-flight motion to a different
+                    // timebase after its clock component is destroyed.
+                    Debug.LogWarning("RAW9 tick-paced motion canceled: DOS clock is missing.", this);
+                    _motions.RemoveAt(i);
+                    continue;
+                }
+                float frameStep = m.DosTickPacing
+                    ? m.Speed * DosTickClock.PacingTicksThisFrame
+                    : m.Speed * Time.deltaTime;
+                float next = Mathf.MoveTowards(m.Position, m.Destination, frameStep);
                 Vector2Int after = before;
                 if (m.AlongX) after.x = Mathf.RoundToInt(next);
                 else after.y = Mathf.RoundToInt(next);

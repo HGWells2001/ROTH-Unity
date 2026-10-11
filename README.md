@@ -123,3 +123,12 @@ Read-only Unity Editor and Python audits identify the four original face/vertex 
 
 ## 0.10.19 — RAW9 portal and shared-vertex topology preflight
 Added a read-only `RothRaw9TopologyInspector`, extended the Unity Editor RAW9 vertex audit with topology warnings, and included a Python auditor for original RAW maps. It detects selected vertices referenced outside the sector, sister-face portal edges, distinct external vertices at the same coordinates, invalid sister pointers and non-four-face sectors. **94 offline Python tests pass**, including 14 new synthetic/static checks. This does not change runtime movement, and no real retail RAW map or Unity Editor Play Mode was tested in this session. See `Documentation/MILESTONE_0_10_19.md`.
+
+
+## 0.10.20 — Experimental selected-four-vertex RAW9 mover (opt-in)
+
+A new `UseSelectedRaw9Vertices` checkbox in `RothHorizontalSectorMover` activates an **experimental** geometry backend. It updates the four original RAW9 vertex coordinates, refreshes mesh/collider, refuses risky topologies or malformed quads, prevalidates bounds, and preserves the previous motion backend when the checkbox is off (the default). Ongoing motions lock their backend; map rebuilds invalidate them. Sector objects follow as in the Unity prototype, which is not yet established as DOS-correct.
+
+**This is NOT yet DOS-faithful movement timing.** Motion interpolation still uses `Time.deltaTime` and the provisional `end-start` distance. Python simulation tests cover safe coordinate changes, but no Unity Editor compilation or retail-map Play Mode checks were performed. See [the 0.10.20 technical report](Documentation/MILESTONE_0_10_20.md). The new geometry backend intentionally rejects some maps pending portal and collision analysis.
+
+To try it, attach or find `RothHorizontalSectorMover` on the map GameObject, enable `Use Selected Raw9 Vertices` before triggering command 9 and test a topology-audited four-face sector. Keep it disabled for the existing prototype.

@@ -13,7 +13,7 @@ namespace ROTHUnity.Runtime
     /// Milestone 0.4.2 fixes the global X orientation while preserving corrected UV mapping, platforms and objects.
     /// </summary>
     [ExecuteAlways]
-    public sealed class RothMapMeshBuilder : MonoBehaviour
+    public sealed partial class RothMapMeshBuilder : MonoBehaviour
     {
         [Header("Source")]
         [Tooltip("Absolute path to an original Realms of the Haunting .RAW file.")]
@@ -235,7 +235,9 @@ namespace ROTHUnity.Runtime
             Vector2Int offset;
             return _movingSectorTextureFlags.TryGetValue(sector.SectorId, out flags) &&
                 (flags & (1 << followBit)) != 0 &&
-                _movingSectorOffsets.TryGetValue(sector.SectorId, out offset)
+                (_movingSectorOffsets.TryGetValue(sector.SectorId, out offset) ||
+                 (_raw9SelectedSectorMotions.ContainsKey(sector.SectorId) &&
+                  RuntimeGetSectorTranslation(sector.SectorId, out offset)))
                     ? offset : Vector2Int.zero;
         }
 
@@ -244,19 +246,23 @@ namespace ROTHUnity.Runtime
             _movingSectorVertices.Clear();
             _movingSectorOffsets.Clear();
             _movingSectorTextureFlags.Clear();
+            _raw9SelectedSectorMotions.Clear();
         }
 
         public bool RuntimeGetSectorTranslation(ushort id, out Vector2Int offset)
         {
             offset = Vector2Int.zero;
             if (_map == null || FindSectorById(id) == null) return false;
-            _movingSectorOffsets.TryGetValue(id, out offset);
+            Raw9SelectedMotion selected;
+            if (_raw9SelectedSectorMotions.TryGetValue(id, out selected))
+                offset = selected.Offset;
+            else _movingSectorOffsets.TryGetValue(id, out offset);
             return true;
         }
 
         private bool PrepareSectorTranslation(ushort id)
         {
-            if (_map == null) return false;
+            if (_map == null || _raw9SelectedSectorMotions.Count != 0) return false;
             if (_movingSectorVertices.ContainsKey(id)) return true;
             RothSector sector = FindSectorById(id);
             if (sector == null || sector.FirstFaceIndex < 0) return false;

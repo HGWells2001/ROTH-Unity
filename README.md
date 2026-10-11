@@ -110,3 +110,8 @@ Examined the original GOG opcode-9 update and shared animation epilogue, verifyi
 
 ## 0.10.17 — Original IRQ0 PIT clock and RAW9 coordinate math
 Using the user-owned GOG `ROTH.EXE`, verified IRQ0 PIT channel-0 programming (initial divisor `0x4242`, running `0x4216`, **nominal ~70.527 Hz**) and the LE-relocated 16-bit counter at **object3+0x20FAC**. Verified signed coordinate targets and clamp logic in the real opcode-9 update `0x22BD9`. Added read-only audit, 18 synthetic tests, isolated non-wired C# arithmetic reference and 6 static source checks; 64 offline Python tests pass. Unity mover is unchanged; no Unity compilation or runtime fidelity claim. See [milestone report](Documentation/MILESTONE_0_10_17.md). No retail executable or assets are committed.
+
+
+### 0.10.17 supplementary PIT counter audit
+
+The read-only `Tools/audit_roth_pit_timer.py` adds 15 independent instruction-site checks and 9 LE relocation checks for the IRQ0 → signed-16 timer → RAW9 delta chain. `Tools/test_roth_pit_timer.py` has 15 additional synthetic tests. `RothDosPitClock.cs` is a standalone, unconnected reference for fractional tick accumulation; it does not alter gameplay. See [supplementary PIT audit](Documentation/ROTH_PIT_COUNTER_AUDIT_0_10_17.md). This complements rather than supersedes the 0.10.17 arithmetic milestone.

@@ -25,9 +25,9 @@ namespace ROTHUnity.Runtime
         public bool UseNominalDosTickPacing;
         [Tooltip("Shared per-frame DOS tick source. An instance is created on this GameObject when the optional pacing mode is first triggered.")]
         public RothDosTickClock DosTickClock;
-        [Tooltip("EXPERIMENTAL: one-way original DOS coordinate endpoints. Requires both selected geometry and PIT tick pacing. Does not support timeout or auto-repeat. OFF by default.")]
+        [Tooltip("EXPERIMENTAL: original DOS absolute coordinates. Requires selected geometry and PIT pacing. Without the separate DOS state machine checkbox this is restricted to one-way, zero-timeout motion. OFF by default.")]
         public bool UseDosSingleShotAbsoluteBounds;
-        [Tooltip("Value of dynamic command[2] bit 0x02 at the FIRST DOS trigger. The original initializes motion in reverse when clear. Not recovered from the current Unity command interpreter.")]
+        [Tooltip("Manual initial direction for direct/one-shot calls. The experimental DOS state-machine mode reads original command+2 from the RAW command parser instead when an indexed command triggers it.")]
         public bool DosInitialCommandStateBit02;
         [Tooltip("EXPERIMENTAL original RAW9 animation-state transitions: dynamic command bit 0x02, active retrigger, signed tick timeout and delayed reversal. Requires the three DOS experiment switches above. OFF by default.")]
         public bool UseDosCommandStateTransitions;
@@ -89,6 +89,20 @@ namespace ROTHUnity.Runtime
                 motion.RawFlags, motion.RawRevertTicks), this);
         }
 
+        // Extra state instrumentation deliberately leaves RAW9_TRACE intact.
+        // frame, command index, sector, event, modifier byte, animation flags,
+        // unsigned 16-bit wait ticks, active bit. For DOSBox A/B captures.
+        private void TraceDosState(Motion motion, string action)
+        {
+            if (!TraceRaw9 || motion.DosState == null) return;
+            RothDosRaw9CommandState state = motion.DosState;
+            Debug.Log(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "RAW9_DOS_STATE|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}",
+                Time.frameCount, motion.RawCommandIndex, motion.SectorId,
+                action, state.CommandState, state.AnimationFlags,
+                state.WaitTicks, state.Active ? 1 : 0), this);
+        }
+
         public bool Move(ushort sectorId, bool alongX, short start, short end,
             ushort revertTicks, bool repeat, ushort flags = 0,
             int rawCommandIndex = 0, byte rawCommandModifier = 0)
@@ -144,6 +158,7 @@ namespace ROTHUnity.Runtime
                             Vector2Int live;
                             if (Builder.RuntimeGetSectorTranslation(sectorId, out live))
                                 Trace(active, "retrigger", live, live);
+                            TraceDosState(active, "retrigger");
                             return true;
                         }
                     }
@@ -248,6 +263,7 @@ namespace ROTHUnity.Runtime
             if (dosStates && rawCommandIndex > 0)
                 _dosCommandStates[rawCommandIndex] = dosState;
             Trace(motion, "trigger", existing, existing);
+            TraceDosState(motion, "trigger");
             return true;
         }
 
@@ -292,6 +308,8 @@ namespace ROTHUnity.Runtime
                         // but does NOT move vertices until the next update.
                         if (m.DosState.ConsumeWait(DosTickClock.PacingTicksThisFrame))
                         {
+                            if (!m.DosState.Waiting)
+                                TraceDosState(m, "wait-finished");
                             Trace(m, m.DosState.Waiting ? "wait" : "wait-finished", before, before);
                             continue;
                         }
@@ -394,10 +412,12 @@ namespace ROTHUnity.Runtime
                             m.DosReverse = m.DosState.Reverse;
                             m.DosBoundWord = m.DosReverse ? m.RawEnd : m.RawStart;
                             Trace(m, m.DosState.Waiting ? "wait-armed" : "reverse", after, after);
+                            TraceDosState(m, m.DosState.Waiting ? "wait-armed" : "reverse");
                         }
                         else
                         {
                             Trace(m, "arrived", after, after);
+                            TraceDosState(m, "arrived");
                             _motions.RemoveAt(i);
                         }
                     }

@@ -44,6 +44,28 @@ class TraceTests(unittest.TestCase):
     def test_negative_direction_absolute_distance(self):
         report = mod.analyze(record(before=10, after=3))
         self.assertEqual(report["sectors"]["12"]["total_committed_raw_distance"], 7)
+    def test_new_dos_trace_events_parse(self):
+        for event in ("retrigger", "wait", "wait-finished", "wait-armed", "reverse"):
+            with self.subTest(event=event):
+                parsed = mod.parse_line(record(event), 1)
+                self.assertEqual(parsed["event"], event)
+
+    def test_wait_and_direction_do_not_contribute_distance(self):
+        lines = [record("trigger", before=0, after=0),
+                 record("wait-armed", before=10, after=10),
+                 record("wait", before=10, after=10),
+                 record("wait-finished", before=10, after=10),
+                 record("reverse", before=10, after=10),
+                 record("step", before=10, after=4),
+                 record("arrived", before=4, after=4)]
+        summary = mod.analyze("\\n".join(lines))
+        self.assertEqual(summary["malformed_rows"], [])
+        self.assertEqual(summary["sectors"]["12"]["total_committed_raw_distance"], 6)
+
+    def test_unknown_state_event_remains_invalid(self):
+        with self.assertRaisesRegex(ValueError, "unknown event"):
+            mod.parse_line(record("not-a-real-event"), 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

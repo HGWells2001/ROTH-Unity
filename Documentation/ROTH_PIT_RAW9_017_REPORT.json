@@ -4,7 +4,7 @@
   "initial_divisor": 16962,
   "interrupt_entry_object1_offset": "0x2431",
   "interrupt_vector": 8,
-  "irq_default_restore_divisor": 65536,
+  "irq_default_restore_divisor": 65535,
   "irq_reprogram_divisor": 16918,
   "nominal_initial_irq_hz": 70.34441693196557,
   "nominal_pit_input_hz": 1193182,
